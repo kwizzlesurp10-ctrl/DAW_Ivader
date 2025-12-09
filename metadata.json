@@ -1,0 +1,5 @@
+{
+  "name": "DOOM-DAW: Irken Audio Lab",
+  "description": "A cyberpunk, Invader Zim-inspired Digital Audio Workstation powered by Gemini. Generate synthwave tracks from text prompts and manipulate oscillators in real-time.",
+  "requestFramePermissions": []
+}
