@@ -21,7 +21,7 @@ class AudioEngine {
   private songData: SongData | null = null;
   private onStepCallback: ((step: number) => void) | null = null;
 
-  constructor() { }
+  constructor() {}
 
   public async init() {
     if (!this.ctx) {
@@ -29,11 +29,11 @@ class AudioEngine {
       this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ latencyHint: 'interactive' });
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 0.5;
-
+      
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 2048;
       this.analyser.smoothingTimeConstant = 0.7;
-
+      
       this.masterGain.connect(this.analyser);
       this.analyser.connect(this.ctx.destination);
     }
@@ -56,7 +56,7 @@ class AudioEngine {
 
   public async start() {
     if (!this.ctx || !this.songData) return;
-
+    
     // Ensure Context is running
     if (this.ctx.state === 'suspended') {
       await this.ctx.resume();
@@ -65,14 +65,14 @@ class AudioEngine {
     if (this.isPlaying) return;
 
     this.isPlaying = true;
-
+    
     // If starting from stop (not pause), sync time
     // If pausing, currentTime stops, so nextNoteTime should be valid
     // We add a tiny buffer to avoid scheduling in the past
     if (this.nextNoteTime < this.ctx.currentTime) {
-      this.nextNoteTime = this.ctx.currentTime + 0.05;
+        this.nextNoteTime = this.ctx.currentTime + 0.05;
     }
-
+    
     this.scheduler();
   }
 
@@ -87,42 +87,39 @@ class AudioEngine {
   public stop() {
     this.isPlaying = false;
     if (this.timerID) window.clearTimeout(this.timerID);
-
+    
     // Reset sequence
     this.currentStep = 0;
     this.nextNoteTime = 0;
-
+    
     if (this.onStepCallback) this.onStepCallback(-1);
   }
 
   public triggerNote(track: Track, noteName: string) {
     if (!this.ctx) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
-
+    
     const time = this.ctx.currentTime + 0.01; // Play immediately
-
+    
     const noteEvent: NoteEvent = {
-      note: noteName,
-      startStep: 0,
-      durationSteps: 4 // Reasonable default duration for preview
+        note: noteName,
+        startStep: 0,
+        durationSteps: 4 // Reasonable default duration for preview
     };
-
+    
     this.playOscillator(track.params, noteEvent, time, track.type);
   }
 
   private nextNote() {
     if (!this.songData) return;
     const secondsPerBeat = 60.0 / this.songData.bpm;
-    const secondsPer16th = secondsPerBeat / 4;
+    const secondsPer16th = secondsPerBeat / 4; 
     this.nextNoteTime += secondsPer16th;
     this.currentStep = (this.currentStep + 1) % 16;
   }
 
   private scheduler() {
     if (!this.ctx) return;
-    // Safety check: if stopped, do not schedule
-    if (!this.isPlaying) return;
-
     while (this.nextNoteTime < this.ctx.currentTime + this.scheduleAheadTime) {
       this.scheduleNote(this.currentStep, this.nextNoteTime);
       this.nextNote();
@@ -137,7 +134,7 @@ class AudioEngine {
 
     // UI Callback
     if (this.onStepCallback) {
-      requestAnimationFrame(() => this.onStepCallback!(stepNumber));
+        requestAnimationFrame(() => this.onStepCallback!(stepNumber));
     }
 
     this.songData.tracks.forEach(track => {
@@ -150,7 +147,7 @@ class AudioEngine {
     });
   }
 
-  private playOscillator(params: SynthParams, note: NoteEvent, time: number, type: 'synth' | 'bass' | 'drums') {
+  private playOscillator(params: SynthParams, note: NoteEvent, time: number, type: 'synth'|'bass'|'drums') {
     if (!this.ctx || !this.masterGain) return;
 
     const osc = this.ctx.createOscillator();
@@ -161,7 +158,7 @@ class AudioEngine {
     let frequency = NOTE_FREQUENCIES[note.note];
     if (type === 'drums' && note.note === 'kick') frequency = 50;
     if (type === 'drums' && note.note === 'snare') frequency = 200;
-
+    
     if (!frequency && type !== 'drums') return;
 
     osc.type = params.waveform;
@@ -169,38 +166,38 @@ class AudioEngine {
 
     // Filter Envelope
     filter.type = 'lowpass';
-    filter.Q.setValueAtTime(params.filterRes, time); // Schedule Q
+    filter.Q.value = params.filterRes;
     filter.frequency.setValueAtTime(params.filterCutoff, time);
-
+    
     // Amp Envelope
     const duration = (60 / (this.songData?.bpm || 120)) / 4 * note.durationSteps;
-
+    
     // Drum overrides for punch
     if (type === 'drums') {
       if (note.note === 'kick') {
-        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-        gainNode.gain.setValueAtTime(1.0, time);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+         osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+         gainNode.gain.setValueAtTime(1.0, time);
+         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
       } else if (note.note === 'snare') {
-        osc.type = 'triangle';
-        gainNode.gain.setValueAtTime(0.8, time);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+         osc.type = 'triangle';
+         gainNode.gain.setValueAtTime(0.8, time);
+         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
       }
     } else {
-      // ADSR for Melodic
-      const attackEnd = time + params.attack;
-      const decayEnd = attackEnd + params.decay;
-      const sustainVal = params.sustain * params.gain;
-
-      gainNode.gain.setValueAtTime(0, time);
-      gainNode.gain.linearRampToValueAtTime(params.gain, attackEnd);
-      gainNode.gain.linearRampToValueAtTime(sustainVal, decayEnd);
-
-      const releaseStart = time + duration;
-      gainNode.gain.setValueAtTime(sustainVal, releaseStart);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, releaseStart + params.release);
+        // ADSR for Melodic
+        const attackEnd = time + params.attack;
+        const decayEnd = attackEnd + params.decay;
+        const sustainVal = params.sustain * params.gain;
+        
+        gainNode.gain.setValueAtTime(0, time);
+        gainNode.gain.linearRampToValueAtTime(params.gain, attackEnd);
+        gainNode.gain.linearRampToValueAtTime(sustainVal, decayEnd);
+        
+        const releaseStart = time + duration;
+        gainNode.gain.setValueAtTime(sustainVal, releaseStart);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, releaseStart + params.release);
     }
-
+    
     // Connect graph
     osc.connect(filter);
     filter.connect(gainNode);
@@ -210,17 +207,17 @@ class AudioEngine {
     osc.start(time);
 
     // Schedule stop
-    if (type === 'drums') {
-      osc.stop(time + 0.5);
+    if(type === 'drums') {
+         osc.stop(time + 0.5);
     } else {
-      const releaseStart = time + duration;
-      osc.stop(releaseStart + params.release + 0.1);
+         const releaseStart = time + duration;
+         osc.stop(releaseStart + params.release + 0.1);
     }
   }
 
   public updateTrackParams(trackIndex: number, newParams: SynthParams) {
     if (this.songData && this.songData.tracks[trackIndex]) {
-      this.songData.tracks[trackIndex].params = newParams;
+        this.songData.tracks[trackIndex].params = newParams;
     }
   }
 }
