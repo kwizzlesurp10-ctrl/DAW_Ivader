@@ -1,0 +1,38 @@
+---
+description: Replicate (Generate audio) API setup and implementation steps — follow README when advising or changing Generate/API.
+globs: api/**/*.ts, services/textToAudioService.ts, App.tsx, README.md, .env.example
+alwaysApply: false
+---
+
+# Replicate API Implementation (Generate Audio)
+
+When helping with the Generate (text-to-audio) feature or API, follow these steps as instructions.
+
+## 1. Get a Replicate token
+
+- Direct the user to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens).
+- They must sign in and create an API token.
+
+## 2. Local setup
+
+- **Env:** In project root, create or edit `.env.local` and add:
+  ```bash
+  REPLICATE_API_TOKEN=your_token
+  ```
+- **Running the app:** Generate only works when the API is reachable:
+  - **Option A:** Run with **`vercel dev`** (Vercel CLI) so both the Vite app and `/api` serverless routes run; use the URL it prints.
+  - **Option B:** Use the deployed app on Vercel (Generate works there if env is set).
+
+Do **not** tell users that `npm run dev` alone is enough for Generate; the `/api/generate-audio` route is only served by Vercel (or `vercel dev`).
+
+## 3. Vercel (production)
+
+- In the Vercel project: **Settings → Environment Variables** add **`REPLICATE_API_TOKEN`** with the user's token.
+- **Redeploy** (e.g. `npx vercel --prod` or push to the connected repo) so the serverless function uses the variable.
+
+## Implementation reference
+
+- **Serverless:** `api/generate-audio.ts` — POST, reads `REPLICATE_API_TOKEN`, calls Replicate MusicGen, returns `{ url }`.
+- **Client:** `services/textToAudioService.ts` — `generateAudioFromText(prompt, duration)` calls `POST /api/generate-audio` and returns `Result<{ url }, Error>`.
+- **App:** Generate button calls `generateAudioFromText(prompt)` then adds a track with `type: 'audio'` and `audioUrl`.
+- **Docs:** Keep `.env.example` and README "Generate audio setup (Replicate)" section in sync with these steps.

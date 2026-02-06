@@ -8,6 +8,9 @@ const NOTE_FREQUENCIES: Record<string, number> = {
   'C5': 523.25, 'C#5': 554.37, 'D5': 587.33, 'D#5': 622.25, 'E5': 659.25, 'F5': 698.46, 'F#5': 739.99, 'G5': 783.99, 'G#5': 830.61, 'A5': 880.00, 'A#5': 932.33, 'B5': 987.77,
 };
 
+/** Cache decoded audio by URL for playback. */
+const audioBufferCache = new Map<string, AudioBuffer>();
+
 class AudioEngine {
   private ctx: AudioContext | null = null;
   private analyser: AnalyserNode | null = null;
@@ -47,6 +50,23 @@ class AudioEngine {
 
   public setSongData(data: SongData): void {
     this.songData = data;
+    this.preloadAudioTracks(data);
+  }
+
+  private async preloadAudioTracks(data: SongData): Promise<void> {
+    if (!this.ctx) return;
+    for (const track of data.tracks) {
+      if (track.type === 'audio' && track.audioUrl && !audioBufferCache.has(track.audioUrl)) {
+        try {
+          const res = await fetch(track.audioUrl);
+          const arrayBuffer = await res.arrayBuffer();
+          const buffer = await this.ctx.decodeAudioData(arrayBuffer);
+          audioBufferCache.set(track.audioUrl, buffer);
+        } catch {
+          // Decode or fetch failed; playback will no-op
+        }
+      }
+    }
   }
 
   public setOnStepCallback(cb: (step: number) => void): void {
@@ -120,6 +140,10 @@ class AudioEngine {
     if (!this.ctx) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
     const time = this.ctx.currentTime + 0.01;
+    if (track.type === 'audio' && track.audioUrl) {
+      this.playAudioTrack(track, time);
+      return;
+    }
     const noteEvent: NoteEvent = { note: noteName, startStep: 0, durationSteps: 4 };
     this.playOscillator(track, noteEvent, time);
   }
@@ -170,11 +194,32 @@ class AudioEngine {
 
     this.songData.tracks.forEach((track) => {
       if (!shouldPlay(track)) return;
+      if (track.type === 'audio' && track.audioUrl) {
+        if (stepNumber === 0) this.playAudioTrack(track, time);
+        return;
+      }
       const notes = track.notes.filter((n) => n.startStep === stepNumber);
       notes.forEach((noteEvent) => {
         this.playOscillator(track, noteEvent, time);
       });
     });
+  }
+
+  private playAudioTrack(track: Track, time: number): void {
+    if (!this.ctx || !this.masterGain || track.type !== 'audio' || !track.audioUrl) return;
+    const buffer = audioBufferCache.get(track.audioUrl);
+    if (!buffer) return;
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    const trackGain = this.ctx.createGain();
+    const panner = this.ctx.createStereoPanner();
+    trackGain.gain.value = track.volume ?? 1;
+    panner.pan.value = track.pan ?? 0;
+    source.connect(trackGain);
+    trackGain.connect(panner);
+    panner.connect(this.masterGain);
+    source.start(time);
+    source.stop(time + buffer.duration);
   }
 
   private playMetronomeClick(stepNumber: number, time: number): void {

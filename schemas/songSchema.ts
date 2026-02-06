@@ -5,7 +5,7 @@ import { ok, err, type Result } from '../lib/result';
 /** Runtime validation for external input (e.g. Gemini API response). */
 
 const waveformSchema = z.enum(['sine', 'square', 'sawtooth', 'triangle']);
-const trackTypeSchema = z.enum(['synth', 'bass', 'drums']);
+const trackTypeSchema = z.enum(['synth', 'bass', 'drums', 'audio']);
 const stepsPerPatternSchema = z.union([z.literal(8), z.literal(16), z.literal(32)]);
 
 /** Max step index for a given stepsPerPattern (stepsPerPattern - 1). */
@@ -35,11 +35,12 @@ export const trackSchema = z.object({
   name: z.string(),
   type: trackTypeSchema,
   notes: z.array(noteEventSchema),
-  params: synthParamsSchema,
+  params: synthParamsSchema.optional(),
   muted: z.boolean().optional(),
   solo: z.boolean().optional(),
   volume: z.number().min(0).max(2).optional(),
   pan: z.number().min(-1).max(1).optional(),
+  audioUrl: z.string().url().optional(),
 });
 
 export const songDataSchema = z.object({
@@ -64,6 +65,16 @@ export function parseSongResponse(raw: unknown): Result<SongData, Error> {
   }
   const data = parsed.data;
   const stepsPerPattern: StepsPerPattern = data.stepsPerPattern ?? 16;
+  const defaultParams = {
+    waveform: 'sine' as const,
+    attack: 0.01,
+    decay: 0.1,
+    sustain: 0.5,
+    release: 0.2,
+    filterCutoff: 1000,
+    filterRes: 1,
+    gain: 0.5,
+  };
   const song: SongData = {
     title: data.title,
     bpm: data.bpm,
@@ -73,12 +84,13 @@ export function parseSongResponse(raw: unknown): Result<SongData, Error> {
       id: t.id,
       name: t.name,
       type: t.type,
-      notes: t.notes,
-      params: t.params,
+      notes: t.notes ?? [],
+      params: t.params ?? defaultParams,
       muted: t.muted ?? false,
       solo: t.solo ?? false,
       volume: t.volume ?? 1,
       pan: t.pan ?? 0,
+      audioUrl: t.audioUrl,
     })),
   };
   return ok(song);

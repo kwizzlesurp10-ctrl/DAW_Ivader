@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Volume2, Music } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
-import { generateSong } from './services/geminiService';
+import { generateAudioFromText } from './services/textToAudioService';
 import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './services/storageService';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { isErr } from './lib/result';
@@ -121,34 +121,27 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    const result = await generateSong(prompt);
+    const result = await generateAudioFromText(prompt, 8);
     if (isErr(result)) {
-      alert(`IRKEN SYSTEM ERROR: ${result.error.message}`);
+      alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
       return;
     }
 
-    const newSong = result.value;
-    const template = INITIAL_SONG.tracks;
-    const completeTracks = newSong.tracks.map((t, i) => {
-      const base = template[i % template.length];
-      return {
-        ...base,
-        ...t,
-        muted: t.muted ?? false,
-        solo: t.solo ?? false,
-        volume: t.volume ?? 1,
-        pan: t.pan ?? 0,
-        params: { ...base.params, ...t.params },
-      };
-    });
-    setSong({
-      ...newSong,
-      stepsPerPattern: newSong.stepsPerPattern ?? DEFAULT_STEPS_PER_PATTERN,
-      swing: newSong.swing ?? DEFAULT_SWING,
-      tracks: completeTracks,
-    });
-    if (completeTracks.length > 0) setSelectedTrackId(completeTracks[0].id);
+    const newTrack: Track = {
+      id: nextTrackId(),
+      name: 'Generated',
+      type: 'audio',
+      notes: [],
+      params: { waveform: 'sine', attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 1000, filterRes: 1, gain: 0.5 },
+      muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
+      audioUrl: result.value.url,
+    };
+    setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
+    setSelectedTrackId(newTrack.id);
     setIsGenerating(false);
   };
 
@@ -417,7 +410,7 @@ const App: React.FC = () => {
                     type="text" 
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="ENTER AUDIO PARAMETERS (e.g., 'Dark cyberpunk bassline with aggressive leads')"
+                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM') — Generate creates an audio clip and adds it as a track"
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
@@ -610,6 +603,8 @@ const App: React.FC = () => {
                                 <Knob label="PAN" value={selectedTrack.pan} min={-1} max={1} onChange={(v) => setTrackPan(selectedTrack.id, v)} color="text-[#b026ff]" />
                             </div>
                         </div>
+                        {selectedTrack.type !== 'audio' && (
+                        <>
                         <div className="bg-black/40 p-4 rounded border border-gray-800 relative group hover:border-[#39ff14]/50 transition-colors">
                             <div className="absolute -top-2 left-3 bg-black px-1 text-[10px] text-[#39ff14] uppercase tracking-wider font-bold">Envelope (ADSR)</div>
                             <div className="flex flex-wrap justify-between mt-2">
@@ -678,6 +673,8 @@ const App: React.FC = () => {
                                  ))}
                              </div>
                         </div>
+                        </>
+                        )}
                      </div>
                  )}
             </div>

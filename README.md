@@ -13,9 +13,9 @@ View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYq
 ## Features
 
 - **Sequencer**: 8/16/32-step grid, click steps to add/remove notes, per-track mute/solo
-- **Tracks**: Add, remove, duplicate, reorder; per-track volume, pan, ADSR, filter, waveform
+- **Tracks**: Add, remove, duplicate, reorder; synth/bass/drums + **audio** (generated clips); per-track volume, pan, ADSR, filter, waveform
 - **Playback**: Play / Pause / Stop, BPM 1–999, swing 0–100%, optional metronome, master volume
-- **AI Generate**: Describe a style (e.g. "dark cyberpunk bassline"); Gemini returns a full song structure
+- **Generate (text-to-audio)**: Type a description and press **Generate**. Uses **Meta MusicGen** (open-source) via Replicate to create an audio clip and adds it as a track; plays from the start of each loop.
 - **Persistence**: Save/load in browser (localStorage), export/import JSON
 - **Undo/Redo**: Full history for all song edits
 - **Keyboard**: Space = play/pause, S = stop
@@ -30,9 +30,10 @@ View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYq
 # 1. Install
 npm ci
 
-# 2. Environment (required for AI Generate)
+# 2. Environment (required for Generate / text-to-audio)
 cp .env.example .env.local
-# Edit .env.local: set GEMINI_API_KEY=your_key
+# Edit .env.local: set REPLICATE_API_TOKEN=your_token
+# (Optional: GEMINI_API_KEY for other features)
 
 # 3. Verify
 npm run test
@@ -58,12 +59,34 @@ npx vercel login
 npx vercel --prod
 ```
 
-Set `GEMINI_API_KEY` in Vercel project Settings → Environment Variables. See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
+Set **`REPLICATE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
+
+---
+
+## Generate audio setup (Replicate)
+
+The **Generate** button uses Meta MusicGen via Replicate. To enable it:
+
+1. **Get a Replicate token**  
+   Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens), sign in, and create an API token.
+
+2. **Local**
+   - In project root create or edit `.env.local` and add:
+     ```bash
+     REPLICATE_API_TOKEN=your_token
+     ```
+   - Generate only works when the API is reachable:
+     - **Option A:** Run the app (and the `/api` route) with **`vercel dev`** (Vercel CLI), then use the URL it prints.
+     - **Option B:** Deploy to Vercel and use the deployed URL (see below).
+
+3. **Vercel (production)**
+   - In the Vercel project: **Settings → Environment Variables** add **`REPLICATE_API_TOKEN`** with your token.
+   - **Redeploy** (e.g. `npx vercel --prod` or push to the connected repo) so the serverless function uses the new variable.
 
 ---
 
 ## Run locally (dev)
 
 1. **Install:** `npm install`
-2. **Env:** Set `GEMINI_API_KEY` in `.env.local` (or `.env`) for the Generate feature.
-3. **Run:** `npm run dev` → http://localhost:3000
+2. **Env:** Set `REPLICATE_API_TOKEN` in `.env.local` (or `.env`) for Generate. Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens).
+3. **Run:** For Generate to work locally, use **`vercel dev`** (not only `npm run dev`). Otherwise use the deployed app.

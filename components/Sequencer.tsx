@@ -19,34 +19,49 @@ export const Sequencer: React.FC<SequencerProps> = ({
   onStepToggle,
 }) => {
   const steps = Array.from({ length: stepsPerPattern }, (_, i) => i);
+  const isAudioTrack = track.type === 'audio';
 
-  // Helper to check if a step is active for this track
   const isStepActive = (stepIndex: number) => {
-    return track.notes.some(n => 
+    return track.notes.some(n =>
       stepIndex >= n.startStep && stepIndex < (n.startStep + n.durationSteps)
     );
   };
-  
+
   const getNoteName = (stepIndex: number) => {
-     const note = track.notes.find(n => n.startStep === stepIndex);
-     return note ? note.note : '';
+    const note = track.notes.find(n => n.startStep === stepIndex);
+    return note ? note.note : '';
   };
 
   const getTrackColor = () => {
-      switch(track.type) {
-          case 'bass': return 'text-[#b026ff] border-[#b026ff] shadow-[#b026ff]';
-          case 'drums': return 'text-[#ff0055] border-[#ff0055] shadow-[#ff0055]';
-          default: return 'text-[#39ff14] border-[#39ff14] shadow-[#39ff14]';
-      }
+    switch (track.type) {
+      case 'bass': return 'text-[#b026ff] border-[#b026ff] shadow-[#b026ff]';
+      case 'drums': return 'text-[#ff0055] border-[#ff0055] shadow-[#ff0055]';
+      case 'audio': return 'text-[#ffaa00] border-[#ffaa00] shadow-[#ffaa00]';
+      default: return 'text-[#39ff14] border-[#39ff14] shadow-[#39ff14]';
+    }
   };
 
   const getTrackBg = () => {
-    switch(track.type) {
-        case 'bass': return 'bg-[#b026ff]';
-        case 'drums': return 'bg-[#ff0055]';
-        default: return 'bg-[#39ff14]';
+    switch (track.type) {
+      case 'bass': return 'bg-[#b026ff]';
+      case 'drums': return 'bg-[#ff0055]';
+      case 'audio': return 'bg-[#ffaa00]';
+      default: return 'bg-[#39ff14]';
     }
   };
+
+  if (isAudioTrack) {
+    return (
+      <div className="flex gap-2 items-center w-full overflow-x-auto py-1">
+        <div className={`w-16 text-xs font-bold shrink-0 uppercase tracking-widest ${getTrackColor().split(' ')[0]} neon-text opacity-90`}>
+          {track.name}
+        </div>
+        <div className={`flex-1 h-12 rounded border border-gray-900 flex items-center justify-center ${getTrackBg()} bg-opacity-30 border-opacity-50`}>
+          <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">Generated clip — plays from start</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex gap-2 items-center w-full overflow-x-auto py-1">

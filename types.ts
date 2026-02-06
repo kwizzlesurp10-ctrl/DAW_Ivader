@@ -12,15 +12,15 @@ export type StepsPerPattern = 8 | 16 | 32;
 export interface Track {
   id: string;
   name: string;
-  type: 'synth' | 'bass' | 'drums';
+  type: 'synth' | 'bass' | 'drums' | 'audio';
   notes: NoteEvent[];
   params: SynthParams;
   muted: boolean;
   solo: boolean;
-  /** Per-track mixer volume 0..1. Applied after synth gain. */
   volume: number;
-  /** Stereo pan -1 (left) .. 0 (center) .. 1 (right). */
   pan: number;
+  /** For type 'audio': URL of the generated or imported audio clip. Played from step 0. */
+  audioUrl?: string;
 }
 
 export interface SynthParams {
