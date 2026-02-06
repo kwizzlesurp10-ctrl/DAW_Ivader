@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Mic, Wand2, Activity, Zap, Cpu, Sliders, Pause } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
 import { generateSong } from './services/geminiService';
+import { isErr } from './lib/result';
 import { SongData, Track, PlayState } from './types';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
@@ -85,27 +86,29 @@ const App: React.FC = () => {
     setCurrentStep(-1);
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (): Promise<void> => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
     handleStop();
 
-    try {
-      const newSong = await generateSong(prompt);
-      const completeTracks = newSong.tracks.map((t, i) => ({
-         ...INITIAL_SONG.tracks[i % INITIAL_SONG.tracks.length], 
-         ...t,
-         params: { ...INITIAL_SONG.tracks[i % INITIAL_SONG.tracks.length].params, ...t.params }
-      }));
-      
-      setSong({ ...newSong, tracks: completeTracks });
-      setSelectedTrackId(completeTracks[0].id);
-    } catch (e) {
-      console.error("Failed to generate", e);
-      alert("IRKEN SYSTEM ERROR: COULD NOT COMPUTE. TRY AGAIN.");
-    } finally {
+    const result = await generateSong(prompt);
+    if (isErr(result)) {
+      alert(`IRKEN SYSTEM ERROR: ${result.error.message}`);
       setIsGenerating(false);
+      return;
     }
+
+    const newSong = result.value;
+    const completeTracks = newSong.tracks.map((t, i) => ({
+      ...INITIAL_SONG.tracks[i % INITIAL_SONG.tracks.length],
+      ...t,
+      muted: t.muted ?? false,
+      params: { ...INITIAL_SONG.tracks[i % INITIAL_SONG.tracks.length].params, ...t.params }
+    }));
+
+    setSong({ ...newSong, tracks: completeTracks });
+    if (completeTracks.length > 0) setSelectedTrackId(completeTracks[0].id);
+    setIsGenerating(false);
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
@@ -122,10 +125,10 @@ const App: React.FC = () => {
     audioEngine.updateTrackParams(trackIndex, newTracks[trackIndex].params);
   };
 
-  const handleTriggerNote = () => {
+  const handleTriggerNote = async () => {
     if (!selectedTrack) return;
-    if (!initialized) handleInit();
-    
+    if (!initialized) await handleInit();
+
     // Find if there is a note defined at the selected step
     const noteAtStep = selectedTrack.notes.find(n => 
         selectedStep >= n.startStep && selectedStep < (n.startStep + n.durationSteps)
@@ -362,13 +365,19 @@ const App: React.FC = () => {
                                         onClick={() => {
                                             const newTracks = [...song.tracks];
                                             const tIdx = newTracks.findIndex(t => t.id === selectedTrack.id);
-                                            newTracks[tIdx].params.waveform = type as any;
+                                            if (tIdx === -1) return;
+                                            const w = type as Track['params']['waveform'];
+                                            newTracks[tIdx] = {
+                                              ...newTracks[tIdx],
+                                              params: { ...newTracks[tIdx].params, waveform: w }
+                                            };
                                             setSong({ ...song, tracks: newTracks });
+                                            audioEngine.updateTrackParams(tIdx, newTracks[tIdx].params);
                                         }}
                                         className={`
                                             py-2 text-[10px] uppercase font-bold border transition-all duration-200
-                                            ${selectedTrack.params.waveform === type 
-                                                ? 'bg-[#39ff14] text-black border-[#39ff14] shadow-[0_0_10px_#39ff14]' 
+                                            ${selectedTrack.params.waveform === type
+                                                ? 'bg-[#39ff14] text-black border-[#39ff14] shadow-[0_0_10px_#39ff14]'
                                                 : 'text-gray-400 border-gray-800 hover:border-gray-600 hover:text-white bg-black/50'
                                             }
                                         `}

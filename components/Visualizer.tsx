@@ -3,6 +3,7 @@ import { audioEngine } from '../services/audioEngine';
 
 export const Visualizer: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let animationId: number;
@@ -62,13 +63,29 @@ export const Visualizer: React.FC = () => {
 
     render();
 
+    const resizeObserver = new ResizeObserver(() => {
+      const el = containerRef.current;
+      const canvas = canvasRef.current;
+      if (!el || !canvas) return;
+      const rect = el.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.floor(rect.width * dpr);
+      const h = Math.floor(128 * dpr);
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+    });
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+
     return () => {
+      resizeObserver.disconnect();
       cancelAnimationFrame(animationId);
     };
   }, []);
 
   return (
-    <div className="w-full h-32 relative overflow-hidden bg-black/50">
+    <div ref={containerRef} className="w-full h-32 relative overflow-hidden bg-black/50">
       <div className="absolute top-1 left-2 text-[9px] text-[#39ff14] z-10 font-bold bg-black/80 px-1 border border-[#39ff14]/30">VISUAL_FEED_v9.2</div>
       {/* Grid overlay on top of canvas for retro feel */}
       <div className="absolute inset-0 z-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMCIgaGVpZ2h0PSIxMCI+PHBhdGggZD0iTTEwIDBMMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSg1NywgMjU1LCAyMCwgMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9zdmc+')] pointer-events-none opacity-50"></div>

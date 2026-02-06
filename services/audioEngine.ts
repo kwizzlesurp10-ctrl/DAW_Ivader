@@ -23,10 +23,12 @@ class AudioEngine {
 
   constructor() {}
 
-  public async init() {
+  public async init(): Promise<void> {
     if (!this.ctx) {
       // Use interactive latency hint for lowest possible latency
-      this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)({ latencyHint: 'interactive' });
+      const Ctx = window.AudioContext ?? window.webkitAudioContext;
+      if (!Ctx) throw new Error("Web Audio API not supported");
+      this.ctx = new Ctx({ latencyHint: 'interactive' });
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = 0.5;
       
@@ -42,11 +44,11 @@ class AudioEngine {
     }
   }
 
-  public setSongData(data: SongData) {
+  public setSongData(data: SongData): void {
     this.songData = data;
   }
 
-  public setOnStepCallback(cb: (step: number) => void) {
+  public setOnStepCallback(cb: (step: number) => void): void {
     this.onStepCallback = cb;
   }
 
@@ -54,7 +56,7 @@ class AudioEngine {
     return this.analyser;
   }
 
-  public async start() {
+  public async start(): Promise<void> {
     if (!this.ctx || !this.songData) return;
     
     // Ensure Context is running
@@ -76,7 +78,7 @@ class AudioEngine {
     this.scheduler();
   }
 
-  public async pause() {
+  public async pause(): Promise<void> {
     this.isPlaying = false;
     if (this.timerID) window.clearTimeout(this.timerID);
     if (this.ctx) {
@@ -84,7 +86,7 @@ class AudioEngine {
     }
   }
 
-  public stop() {
+  public stop(): void {
     this.isPlaying = false;
     if (this.timerID) window.clearTimeout(this.timerID);
     
@@ -95,7 +97,7 @@ class AudioEngine {
     if (this.onStepCallback) this.onStepCallback(-1);
   }
 
-  public triggerNote(track: Track, noteName: string) {
+  public triggerNote(track: Track, noteName: string): void {
     if (!this.ctx) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
     
@@ -215,7 +217,7 @@ class AudioEngine {
     }
   }
 
-  public updateTrackParams(trackIndex: number, newParams: SynthParams) {
+  public updateTrackParams(trackIndex: number, newParams: SynthParams): void {
     if (this.songData && this.songData.tracks[trackIndex]) {
         this.songData.tracks[trackIndex].params = newParams;
     }

@@ -65,7 +65,8 @@ export const Knob: React.FC<KnobProps> = ({
     };
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
-  const percentage = (value - min) / (max - min);
+  const range = max - min;
+  const percentage = range === 0 ? 0 : (value - min) / range;
   const rotation = -135 + (percentage * 270);
 
   return (
