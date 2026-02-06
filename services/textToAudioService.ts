@@ -29,10 +29,27 @@ export async function generateAudioFromText(
       body: JSON.stringify({ prompt: trimmed, duration: durationSeconds }),
     });
 
-    const data = (await res.json()) as { url?: string; error?: string };
+    const text = await res.text();
+    let data: { url?: string; error?: string };
+    try {
+      data = text ? (JSON.parse(text) as { url?: string; error?: string }) : {};
+    } catch {
+      return err(
+        new Error(
+          res.ok
+            ? 'Invalid response from server'
+            : `Generate failed: ${res.status} ${res.statusText}${text ? ` — ${text.slice(0, 200)}` : ''}`
+        )
+      );
+    }
 
     if (!res.ok) {
-      return err(new Error(data.error ?? `HTTP ${res.status}`));
+      const msg =
+        data.error ??
+        (res.status === 404
+          ? 'Generate API not found. Run the app with "vercel dev" (not npm run dev) so /api/generate-audio is available.'
+          : `HTTP ${res.status}`);
+      return err(new Error(msg));
     }
 
     if (!data.url || typeof data.url !== 'string') {
