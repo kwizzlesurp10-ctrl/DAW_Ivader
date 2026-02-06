@@ -1,16 +1,22 @@
 import { z } from 'zod';
-import type { SongData } from '../types';
+import type { SongData, StepsPerPattern } from '../types';
 import { ok, err, type Result } from '../lib/result';
 
 /** Runtime validation for external input (e.g. Gemini API response). */
 
 const waveformSchema = z.enum(['sine', 'square', 'sawtooth', 'triangle']);
 const trackTypeSchema = z.enum(['synth', 'bass', 'drums']);
+const stepsPerPatternSchema = z.union([z.literal(8), z.literal(16), z.literal(32)]);
+
+/** Max step index for a given stepsPerPattern (stepsPerPattern - 1). */
+export function maxStepIndex(steps: StepsPerPattern): number {
+  return steps - 1;
+}
 
 export const noteEventSchema = z.object({
   note: z.string(),
-  startStep: z.number().int().min(0).max(15),
-  durationSteps: z.number().int().min(1).max(16),
+  startStep: z.number().int().min(0).max(31),
+  durationSteps: z.number().int().min(1).max(32),
 });
 
 export const synthParamsSchema = z.object({
@@ -31,11 +37,16 @@ export const trackSchema = z.object({
   notes: z.array(noteEventSchema),
   params: synthParamsSchema,
   muted: z.boolean().optional(),
+  solo: z.boolean().optional(),
+  volume: z.number().min(0).max(2).optional(),
+  pan: z.number().min(-1).max(1).optional(),
 });
 
 export const songDataSchema = z.object({
   title: z.string(),
   bpm: z.number().int().min(1).max(999),
+  stepsPerPattern: stepsPerPatternSchema.optional(),
+  swing: z.number().min(0).max(100).optional(),
   tracks: z.array(trackSchema).min(1),
 });
 
@@ -52,9 +63,12 @@ export function parseSongResponse(raw: unknown): Result<SongData, Error> {
     return err(new Error(`Invalid song data: ${parsed.error.message}`));
   }
   const data = parsed.data;
+  const stepsPerPattern: StepsPerPattern = data.stepsPerPattern ?? 16;
   const song: SongData = {
     title: data.title,
     bpm: data.bpm,
+    stepsPerPattern,
+    swing: data.swing ?? 0,
     tracks: data.tracks.map((t) => ({
       id: t.id,
       name: t.name,
@@ -62,6 +76,9 @@ export function parseSongResponse(raw: unknown): Result<SongData, Error> {
       notes: t.notes,
       params: t.params,
       muted: t.muted ?? false,
+      solo: t.solo ?? false,
+      volume: t.volume ?? 1,
+      pan: t.pan ?? 0,
     })),
   };
   return ok(song);

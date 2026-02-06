@@ -38,8 +38,11 @@ describe('songSchema', () => {
     it('accepts valid note event', () => {
       expect(noteEventSchema.parse(validNote)).toEqual(validNote);
     });
-    it('rejects startStep > 15', () => {
-      expect(() => noteEventSchema.parse({ ...validNote, startStep: 16 })).toThrow();
+    it('accepts startStep up to 31 (32-step patterns)', () => {
+      expect(noteEventSchema.parse({ ...validNote, startStep: 31 })).toMatchObject({ startStep: 31 });
+    });
+    it('rejects startStep > 31', () => {
+      expect(() => noteEventSchema.parse({ ...validNote, startStep: 32 })).toThrow();
     });
     it('rejects startStep < 0', () => {
       expect(() => noteEventSchema.parse({ ...validNote, startStep: -1 })).toThrow();
@@ -104,8 +107,13 @@ describe('songSchema', () => {
       if (isOk(result)) {
         expect(result.value.title).toBe('Test');
         expect(result.value.bpm).toBe(120);
+        expect(result.value.stepsPerPattern).toBe(16);
+        expect(result.value.swing).toBe(0);
         expect(result.value.tracks).toHaveLength(1);
         expect(result.value.tracks[0].muted).toBe(false);
+        expect(result.value.tracks[0].solo).toBe(false);
+        expect(result.value.tracks[0].volume).toBe(1);
+        expect(result.value.tracks[0].pan).toBe(0);
       }
     });
     it('defaults muted to false when omitted', () => {

@@ -1,8 +1,13 @@
+/** Step index for the sequencer (0-based, max depends on stepsPerPattern). */
+export type StepIndex = number;
+
 export interface NoteEvent {
-  note: string; // e.g., "C4", "A#3"
-  startStep: number; // 0-15 (for a 16 step sequencer)
+  note: string; // e.g., "C4", "A#3", "kick", "snare"
+  startStep: number;
   durationSteps: number;
 }
+
+export type StepsPerPattern = 8 | 16 | 32;
 
 export interface Track {
   id: string;
@@ -11,6 +16,11 @@ export interface Track {
   notes: NoteEvent[];
   params: SynthParams;
   muted: boolean;
+  solo: boolean;
+  /** Per-track mixer volume 0..1. Applied after synth gain. */
+  volume: number;
+  /** Stereo pan -1 (left) .. 0 (center) .. 1 (right). */
+  pan: number;
 }
 
 export interface SynthParams {
@@ -24,9 +34,16 @@ export interface SynthParams {
   gain: number;
 }
 
+/** Swing percentage 0..100. 0 = straight, 50 = moderate swing. */
+export type SwingPercent = number;
+
 export interface SongData {
   title: string;
   bpm: number;
+  /** Steps per pattern (grid length). */
+  stepsPerPattern: StepsPerPattern;
+  /** Swing 0..100. */
+  swing: SwingPercent;
   tracks: Track[];
 }
 

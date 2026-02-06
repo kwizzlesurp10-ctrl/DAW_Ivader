@@ -16,10 +16,11 @@ class AudioEngine {
   private currentStep: number = 0;
   private nextNoteTime: number = 0;
   private timerID: number | undefined;
-  private lookahead: number = 15.0; // Reduced for lower latency
-  private scheduleAheadTime: number = 0.1; // 100ms
+  private lookahead: number = 15.0;
+  private scheduleAheadTime: number = 0.1;
   private songData: SongData | null = null;
   private onStepCallback: ((step: number) => void) | null = null;
+  private metronomeEnabled: boolean = false;
 
   constructor() {}
 
@@ -54,6 +55,24 @@ class AudioEngine {
 
   public getAnalyser(): AnalyserNode | null {
     return this.analyser;
+  }
+
+  public getMasterVolume(): number {
+    return this.masterGain?.gain.value ?? 0.5;
+  }
+
+  public setMasterVolume(value: number): void {
+    if (this.masterGain) {
+      this.masterGain.gain.value = Math.max(0, Math.min(1, value));
+    }
+  }
+
+  public setMetronomeEnabled(enabled: boolean): void {
+    this.metronomeEnabled = enabled;
+  }
+
+  public getMetronomeEnabled(): boolean {
+    return this.metronomeEnabled;
   }
 
   public async start(): Promise<void> {
@@ -100,30 +119,33 @@ class AudioEngine {
   public triggerNote(track: Track, noteName: string): void {
     if (!this.ctx) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
-    
-    const time = this.ctx.currentTime + 0.01; // Play immediately
-    
-    const noteEvent: NoteEvent = {
-        note: noteName,
-        startStep: 0,
-        durationSteps: 4 // Reasonable default duration for preview
-    };
-    
-    this.playOscillator(track.params, noteEvent, time, track.type);
+    const time = this.ctx.currentTime + 0.01;
+    const noteEvent: NoteEvent = { note: noteName, startStep: 0, durationSteps: 4 };
+    this.playOscillator(track, noteEvent, time);
   }
 
-  private nextNote() {
+  private getStepsPerPattern(): number {
+    return this.songData?.stepsPerPattern ?? 16;
+  }
+
+  private nextNote(): void {
     if (!this.songData) return;
+    const steps = this.getStepsPerPattern();
     const secondsPerBeat = 60.0 / this.songData.bpm;
-    const secondsPer16th = secondsPerBeat / 4; 
-    this.nextNoteTime += secondsPer16th;
-    this.currentStep = (this.currentStep + 1) % 16;
+    const secondsPerStep = secondsPerBeat / 4;
+    this.nextNoteTime += secondsPerStep;
+    this.currentStep = (this.currentStep + 1) % steps;
   }
 
-  private scheduler() {
+  private scheduler(): void {
     if (!this.ctx) return;
     while (this.nextNoteTime < this.ctx.currentTime + this.scheduleAheadTime) {
-      this.scheduleNote(this.currentStep, this.nextNoteTime);
+      const secondsPerBeat = 60.0 / (this.songData?.bpm ?? 120);
+      const secondsPerStep = secondsPerBeat / 4;
+      const swing = (this.songData?.swing ?? 0) / 100;
+      const isOddStep = this.currentStep % 2 === 1;
+      const scheduleTime = this.nextNoteTime + (isOddStep ? secondsPerStep * 0.5 * swing : 0);
+      this.scheduleNote(this.currentStep, scheduleTime);
       this.nextNote();
     }
     if (this.isPlaying) {
@@ -131,89 +153,106 @@ class AudioEngine {
     }
   }
 
-  private scheduleNote(stepNumber: number, time: number) {
+  private scheduleNote(stepNumber: number, time: number): void {
     if (!this.songData || !this.ctx || !this.masterGain) return;
 
-    // UI Callback
     if (this.onStepCallback) {
-        requestAnimationFrame(() => this.onStepCallback!(stepNumber));
+      requestAnimationFrame(() => this.onStepCallback!(stepNumber));
     }
 
-    this.songData.tracks.forEach(track => {
-      if (track.muted) return;
+    const anySolo = this.songData.tracks.some((t) => t.solo);
+    const shouldPlay = (track: Track): boolean =>
+      anySolo ? track.solo : !track.muted;
 
-      const notes = track.notes.filter(n => n.startStep === stepNumber);
-      notes.forEach(noteEvent => {
-        this.playOscillator(track.params, noteEvent, time, track.type);
+    if (this.metronomeEnabled) {
+      this.playMetronomeClick(stepNumber, time);
+    }
+
+    this.songData.tracks.forEach((track) => {
+      if (!shouldPlay(track)) return;
+      const notes = track.notes.filter((n) => n.startStep === stepNumber);
+      notes.forEach((noteEvent) => {
+        this.playOscillator(track, noteEvent, time);
       });
     });
   }
 
-  private playOscillator(params: SynthParams, note: NoteEvent, time: number, type: 'synth'|'bass'|'drums') {
+  private playMetronomeClick(stepNumber: number, time: number): void {
     if (!this.ctx || !this.masterGain) return;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const freq = stepNumber === 0 ? 1000 : 800;
+    const dur = stepNumber === 0 ? 0.02 : 0.01;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, time);
+    gain.gain.setValueAtTime(0.25, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(time);
+    osc.stop(time + dur);
+  }
+
+  private playOscillator(track: Track, note: NoteEvent, time: number): void {
+    if (!this.ctx || !this.masterGain) return;
+    const params = track.params;
+    const type = track.type;
 
     const osc = this.ctx.createOscillator();
     const gainNode = this.ctx.createGain();
     const filter = this.ctx.createBiquadFilter();
+    const trackGain = this.ctx.createGain();
+    const panner = this.ctx.createStereoPanner();
+    trackGain.gain.value = track.volume ?? 1;
+    panner.pan.value = track.pan ?? 0;
 
-    // Determine Frequency
     let frequency = NOTE_FREQUENCIES[note.note];
     if (type === 'drums' && note.note === 'kick') frequency = 50;
     if (type === 'drums' && note.note === 'snare') frequency = 200;
-    
-    if (!frequency && type !== 'drums') return;
+    if (frequency === undefined && type !== 'drums') return;
 
     osc.type = params.waveform;
     osc.frequency.setValueAtTime(frequency, time);
 
-    // Filter Envelope
     filter.type = 'lowpass';
     filter.Q.value = params.filterRes;
     filter.frequency.setValueAtTime(params.filterCutoff, time);
-    
-    // Amp Envelope
-    const duration = (60 / (this.songData?.bpm || 120)) / 4 * note.durationSteps;
-    
-    // Drum overrides for punch
+
+    const duration = (60 / (this.songData?.bpm ?? 120)) / 4 * note.durationSteps;
+
     if (type === 'drums') {
       if (note.note === 'kick') {
-         osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-         gainNode.gain.setValueAtTime(1.0, time);
-         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+        osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+        gainNode.gain.setValueAtTime(1.0, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
       } else if (note.note === 'snare') {
-         osc.type = 'triangle';
-         gainNode.gain.setValueAtTime(0.8, time);
-         gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+        osc.type = 'triangle';
+        gainNode.gain.setValueAtTime(0.8, time);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
       }
     } else {
-        // ADSR for Melodic
-        const attackEnd = time + params.attack;
-        const decayEnd = attackEnd + params.decay;
-        const sustainVal = params.sustain * params.gain;
-        
-        gainNode.gain.setValueAtTime(0, time);
-        gainNode.gain.linearRampToValueAtTime(params.gain, attackEnd);
-        gainNode.gain.linearRampToValueAtTime(sustainVal, decayEnd);
-        
-        const releaseStart = time + duration;
-        gainNode.gain.setValueAtTime(sustainVal, releaseStart);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, releaseStart + params.release);
+      const attackEnd = time + params.attack;
+      const decayEnd = attackEnd + params.decay;
+      const sustainVal = params.sustain * params.gain;
+      gainNode.gain.setValueAtTime(0, time);
+      gainNode.gain.linearRampToValueAtTime(params.gain, attackEnd);
+      gainNode.gain.linearRampToValueAtTime(sustainVal, decayEnd);
+      const releaseStart = time + duration;
+      gainNode.gain.setValueAtTime(sustainVal, releaseStart);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, releaseStart + params.release);
     }
-    
-    // Connect graph
+
     osc.connect(filter);
     filter.connect(gainNode);
-    gainNode.connect(this.masterGain);
+    gainNode.connect(trackGain);
+    trackGain.connect(panner);
+    panner.connect(this.masterGain);
 
-    // CRITICAL FIX: Always start BEFORE scheduling stop to prevent "cannot call stop without start"
     osc.start(time);
-
-    // Schedule stop
-    if(type === 'drums') {
-         osc.stop(time + 0.5);
+    if (type === 'drums') {
+      osc.stop(time + 0.5);
     } else {
-         const releaseStart = time + duration;
-         osc.stop(releaseStart + params.release + 0.1);
+      osc.stop(time + duration + params.release + 0.1);
     }
   }
 

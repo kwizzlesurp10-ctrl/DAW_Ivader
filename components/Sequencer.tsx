@@ -1,15 +1,24 @@
 import React from 'react';
-import { Track } from '../types';
+import { Track, StepsPerPattern } from '../types';
 
 interface SequencerProps {
   track: Track;
+  stepsPerPattern: StepsPerPattern;
   currentStep: number;
   selectedStep: number;
   onStepSelect: (step: number) => void;
+  onStepToggle?: (step: number) => void;
 }
 
-export const Sequencer: React.FC<SequencerProps> = ({ track, currentStep, selectedStep, onStepSelect }) => {
-  const steps = Array.from({ length: 16 }, (_, i) => i);
+export const Sequencer: React.FC<SequencerProps> = ({
+  track,
+  stepsPerPattern,
+  currentStep,
+  selectedStep,
+  onStepSelect,
+  onStepToggle,
+}) => {
+  const steps = Array.from({ length: stepsPerPattern }, (_, i) => i);
 
   // Helper to check if a step is active for this track
   const isStepActive = (stepIndex: number) => {
@@ -68,12 +77,12 @@ export const Sequencer: React.FC<SequencerProps> = ({ track, currentStep, select
            const playheadClass = isCurrent ? "after:absolute after:inset-0 after:bg-white after:opacity-50 after:z-30 after:shadow-[0_0_10px_white]" : "";
 
            return (
-             <div 
-                key={step} 
+             <div
+                key={step}
                 className={`${baseClasses} ${playheadClass}`}
-                onClick={(e) => {
-                    // We don't stop propagation so track selection also happens in parent
-                    onStepSelect(step);
+                onClick={() => {
+                  onStepSelect(step);
+                  if (onStepToggle) onStepToggle(step);
                 }}
              >
                 {/* Glass reflection effect */}

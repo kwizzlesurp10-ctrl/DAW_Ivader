@@ -4,9 +4,21 @@
 
 # DOOM DAW — IRKEN Audio Lab
 
-Run and deploy the app locally or to production.
+A modern, in-browser DAW with AI-assisted generation, step sequencer, and full project persistence.
 
 View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYqp
+
+---
+
+## Features
+
+- **Sequencer**: 8/16/32-step grid, click steps to add/remove notes, per-track mute/solo
+- **Tracks**: Add, remove, duplicate, reorder; per-track volume, pan, ADSR, filter, waveform
+- **Playback**: Play / Pause / Stop, BPM 1–999, swing 0–100%, optional metronome, master volume
+- **AI Generate**: Describe a style (e.g. "dark cyberpunk bassline"); Gemini returns a full song structure
+- **Persistence**: Save/load in browser (localStorage), export/import JSON
+- **Undo/Redo**: Full history for all song edits
+- **Keyboard**: Space = play/pause, S = stop
 
 ---
 

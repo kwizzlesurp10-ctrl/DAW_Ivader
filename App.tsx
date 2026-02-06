@@ -1,17 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, Mic, Wand2, Activity, Zap, Cpu, Sliders, Pause } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Volume2, Music } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
 import { generateSong } from './services/geminiService';
+import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './services/storageService';
+import { useUndoRedo } from './hooks/useUndoRedo';
 import { isErr } from './lib/result';
 import { SongData, Track, PlayState } from './types';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
 
+function nextTrackId(): string {
+  return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+/** Default steps per pattern and swing for new songs. */
+const DEFAULT_STEPS_PER_PATTERN = 16 as const;
+const DEFAULT_SWING = 0;
+
 // Default initial state
 const INITIAL_SONG: SongData = {
   title: "INIT_SEQUENCE_01",
   bpm: 128,
+  stepsPerPattern: DEFAULT_STEPS_PER_PATTERN,
+  swing: DEFAULT_SWING,
   tracks: [
     {
       id: "t1",
@@ -19,7 +31,10 @@ const INITIAL_SONG: SongData = {
       type: "synth",
       notes: [{ note: "C4", startStep: 0, durationSteps: 2 }, { note: "E4", startStep: 4, durationSteps: 2 }, { note: "G4", startStep: 8, durationSteps: 2 }, { note: "B4", startStep: 12, durationSteps: 2 }],
       params: { waveform: "sawtooth", attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 2000, filterRes: 1, gain: 0.4 },
-      muted: false
+      muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
     },
     {
       id: "t2",
@@ -27,7 +42,10 @@ const INITIAL_SONG: SongData = {
       type: "bass",
       notes: [{ note: "C2", startStep: 0, durationSteps: 4 }, { note: "G2", startStep: 8, durationSteps: 4 }],
       params: { waveform: "square", attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.1, filterCutoff: 400, filterRes: 5, gain: 0.6 },
-      muted: false
+      muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
     },
     {
       id: "t3",
@@ -35,25 +53,37 @@ const INITIAL_SONG: SongData = {
       type: "drums",
       notes: [{ note: "kick", startStep: 0, durationSteps: 1 }, { note: "kick", startStep: 4, durationSteps: 1 }, { note: "kick", startStep: 8, durationSteps: 1 }, { note: "kick", startStep: 12, durationSteps: 1 }],
       params: { waveform: "sine", attack: 0, decay: 0.1, sustain: 0, release: 0, filterCutoff: 1000, filterRes: 0, gain: 1 },
-      muted: false
-    }
-  ]
+      muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
+    },
+  ],
 };
 
 const App: React.FC = () => {
-  const [song, setSong] = useState<SongData>(INITIAL_SONG);
+  const { state: song, setState: setSong, undo, redo, canUndo, canRedo } = useUndoRedo<SongData>(INITIAL_SONG);
   const [playState, setPlayState] = useState<PlayState>(PlayState.STOPPED);
   const [currentStep, setCurrentStep] = useState<number>(-1);
   const [selectedStep, setSelectedStep] = useState<number>(0);
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string>(INITIAL_SONG.tracks[0].id);
   const [initialized, setInitialized] = useState(false);
+  const [masterVolume, setMasterVolume] = useState(() => audioEngine.getMasterVolume());
+  const [metronomeOn, setMetronomeOn] = useState(false);
 
-  // Sync song data with audio engine
   useEffect(() => {
     audioEngine.setSongData(song);
   }, [song]);
+
+  useEffect(() => {
+    audioEngine.setMasterVolume(masterVolume);
+  }, [masterVolume]);
+
+  useEffect(() => {
+    audioEngine.setMetronomeEnabled(metronomeOn);
+  }, [metronomeOn]);
 
   // Handle Playback Loop Visualization
   useEffect(() => {
@@ -99,14 +129,25 @@ const App: React.FC = () => {
     }
 
     const newSong = result.value;
-    const completeTracks = newSong.tracks.map((t, i) => ({
-      ...INITIAL_SONG.tracks[i % INITIAL_SONG.tracks.length],
-      ...t,
-      muted: t.muted ?? false,
-      params: { ...INITIAL_SONG.tracks[i % INITIAL_SONG.tracks.length].params, ...t.params }
-    }));
-
-    setSong({ ...newSong, tracks: completeTracks });
+    const template = INITIAL_SONG.tracks;
+    const completeTracks = newSong.tracks.map((t, i) => {
+      const base = template[i % template.length];
+      return {
+        ...base,
+        ...t,
+        muted: t.muted ?? false,
+        solo: t.solo ?? false,
+        volume: t.volume ?? 1,
+        pan: t.pan ?? 0,
+        params: { ...base.params, ...t.params },
+      };
+    });
+    setSong({
+      ...newSong,
+      stepsPerPattern: newSong.stepsPerPattern ?? DEFAULT_STEPS_PER_PATTERN,
+      swing: newSong.swing ?? DEFAULT_SWING,
+      tracks: completeTracks,
+    });
     if (completeTracks.length > 0) setSelectedTrackId(completeTracks[0].id);
     setIsGenerating(false);
   };
@@ -120,10 +161,186 @@ const App: React.FC = () => {
       ...newTracks[trackIndex].params,
       [param]: value
     };
-    
-    setSong({ ...song, tracks: newTracks });
+
+    setSong(prev => ({ ...prev, tracks: newTracks }));
     audioEngine.updateTrackParams(trackIndex, newTracks[trackIndex].params);
   };
+
+  const handleStepToggle = (trackId: string, step: number) => {
+    const trackIndex = song.tracks.findIndex(t => t.id === trackId);
+    if (trackIndex === -1) return;
+    const track = song.tracks[trackIndex];
+    const hasNoteAtStep = track.notes.some(
+      n => step >= n.startStep && step < n.startStep + n.durationSteps
+    );
+    const newTracks = [...song.tracks];
+    if (hasNoteAtStep) {
+      newTracks[trackIndex] = {
+        ...track,
+        notes: track.notes.filter(
+          n => !(step >= n.startStep && step < n.startStep + n.durationSteps)
+        ),
+      };
+    } else {
+      const defaultNote =
+        track.type === 'drums'
+          ? { note: 'kick', startStep: step, durationSteps: 1 }
+          : track.type === 'bass'
+            ? { note: 'C2', startStep: step, durationSteps: 4 }
+            : { note: 'C4', startStep: step, durationSteps: 2 };
+      newTracks[trackIndex] = {
+        ...track,
+        notes: [...track.notes, defaultNote].sort((a, b) => a.startStep - b.startStep),
+      };
+    }
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const setTrackMuted = (trackId: string, muted: boolean) => {
+    const i = song.tracks.findIndex(t => t.id === trackId);
+    if (i === -1) return;
+    const newTracks = [...song.tracks];
+    newTracks[i] = { ...newTracks[i], muted };
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const setTrackSolo = (trackId: string, solo: boolean) => {
+    const i = song.tracks.findIndex(t => t.id === trackId);
+    if (i === -1) return;
+    const newTracks = [...song.tracks];
+    newTracks[i] = { ...newTracks[i], solo };
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const setTrackVolume = (trackId: string, volume: number) => {
+    const i = song.tracks.findIndex(t => t.id === trackId);
+    if (i === -1) return;
+    const newTracks = [...song.tracks];
+    newTracks[i] = { ...newTracks[i], volume: Math.max(0, Math.min(2, volume)) };
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const setTrackPan = (trackId: string, pan: number) => {
+    const i = song.tracks.findIndex(t => t.id === trackId);
+    if (i === -1) return;
+    const newTracks = [...song.tracks];
+    newTracks[i] = { ...newTracks[i], pan: Math.max(-1, Math.min(1, pan)) };
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const setBpm = (bpm: number) => {
+    const clamped = Math.max(1, Math.min(999, Math.round(bpm)));
+    setSong(prev => ({ ...prev, bpm: clamped }));
+  };
+
+  const addTrack = () => {
+    const newTrack: Track = {
+      id: nextTrackId(),
+      name: 'NEW',
+      type: 'synth',
+      notes: [],
+      params: { waveform: 'sine', attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 1000, filterRes: 1, gain: 0.5 },
+      muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
+    };
+    setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
+    setSelectedTrackId(newTrack.id);
+  };
+
+  const removeTrack = (trackId: string) => {
+    const i = song.tracks.findIndex(t => t.id === trackId);
+    if (i === -1 || song.tracks.length <= 1) return;
+    const next = song.tracks.filter(t => t.id !== trackId);
+    setSong(prev => ({ ...prev, tracks: next }));
+    if (selectedTrackId === trackId) {
+      setSelectedTrackId(next[0].id);
+    }
+  };
+
+  const duplicateTrack = (trackId: string) => {
+    const track = song.tracks.find(t => t.id === trackId);
+    if (!track) return;
+    const newTrack: Track = { ...track, id: nextTrackId(), name: track.name + ' COPY' };
+    const i = song.tracks.findIndex(t => t.id === trackId);
+    const newTracks = [...song.tracks];
+    newTracks.splice(i + 1, 0, newTrack);
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+    setSelectedTrackId(newTrack.id);
+  };
+
+  const moveTrack = (trackId: string, direction: 'up' | 'down') => {
+    const i = song.tracks.findIndex(t => t.id === trackId);
+    if (i === -1) return;
+    if (direction === 'up' && i === 0) return;
+    if (direction === 'down' && i === song.tracks.length - 1) return;
+    const newTracks = [...song.tracks];
+    const j = direction === 'up' ? i - 1 : i + 1;
+    [newTracks[i], newTracks[j]] = [newTracks[j], newTracks[i]];
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const handleSave = () => {
+    const result = saveSong(song);
+    if (isErr(result)) alert(result.error.message);
+    else alert('Saved.');
+  };
+
+  const handleLoad = () => {
+    handleStop();
+    const result = loadSong();
+    if (isErr(result)) alert(result.error.message);
+    else setSong(result.value);
+  };
+
+  const handleExport = () => {
+    const blob = new Blob([exportSongToJson(song)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (song.title || 'doom-daw') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = () => {
+      const file = (input.files ?? [])[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = reader.result as string;
+        const result = importSongFromJson(text);
+        if (isErr(result)) alert(result.error.message);
+        else {
+          handleStop();
+          setSong(result.value);
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (playState === PlayState.PLAYING) void handlePause();
+        else void handlePlay();
+      }
+      if (e.code === 'KeyS') {
+        e.preventDefault();
+        handleStop();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [playState]);
 
   const handleTriggerNote = async () => {
     if (!selectedTrack) return;
@@ -215,13 +432,44 @@ const App: React.FC = () => {
             </div>
         </div>
         
-        <div className="cyber-panel flex items-center gap-4 p-4 px-6 min-w-[280px] justify-between bg-black/80">
-            <div className="text-center mr-2">
-                <div className="text-[10px] text-[#b026ff] tracking-widest mb-1">BPM</div>
-                <div className="text-3xl font-bold text-white font-vt323 neon-text-purple">{song.bpm}</div>
+        <div className="cyber-panel flex flex-wrap items-center gap-4 p-4 px-6 min-w-[320px] justify-between bg-black/80">
+            <div className="flex items-center gap-3">
+                <div className="text-center">
+                    <div className="text-[10px] text-[#b026ff] tracking-widest mb-1">BPM</div>
+                    <input
+                        type="number"
+                        min={1}
+                        max={999}
+                        value={song.bpm}
+                        onChange={(e) => setBpm(Number(e.target.value))}
+                        className="w-14 bg-black border border-[#b026ff] text-[#b026ff] text-xl font-bold font-mono text-center focus:outline-none focus:ring-1 focus:ring-[#b026ff]"
+                        aria-label="Beats per minute"
+                    />
+                </div>
+                <div className="flex flex-col items-center">
+                    <div className="text-[9px] text-gray-500 mb-0.5">MASTER</div>
+                    <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={masterVolume * 100}
+                        onChange={(e) => setMasterVolume(Number(e.target.value) / 100)}
+                        className="w-16 h-2 accent-[#39ff14]"
+                        aria-label="Master volume"
+                    />
+                </div>
+                <label className="flex items-center gap-1.5 cursor-pointer" title="Metronome">
+                    <Music size={14} className="text-gray-500" />
+                    <input
+                        type="checkbox"
+                        checked={metronomeOn}
+                        onChange={(e) => setMetronomeOn(e.target.checked)}
+                        className="accent-[#b026ff]"
+                    />
+                    <span className="text-[9px] text-gray-500">CLICK</span>
+                </label>
             </div>
             <div className="h-10 w-[1px] bg-gray-700"></div>
-            
             <div className="flex gap-2">
                  {/* Stop Button */}
                 <button 
@@ -250,6 +498,15 @@ const App: React.FC = () => {
                     <Pause fill="currentColor" size={16} />
                 </button>
             </div>
+            <div className="flex items-center gap-1 text-[10px]">
+                <button onClick={undo} disabled={!canUndo} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-40 disabled:cursor-not-allowed" title="Undo">UNDO</button>
+                <button onClick={redo} disabled={!canRedo} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-40 disabled:cursor-not-allowed" title="Redo">REDO</button>
+                <span className="w-px h-4 bg-gray-600 mx-1" />
+                <button onClick={handleSave} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Save to browser">SAVE</button>
+                <button onClick={handleLoad} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Load from browser">LOAD</button>
+                <button onClick={handleExport} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Export JSON">EXPORT</button>
+                <button onClick={handleImport} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Import JSON">IMPORT</button>
+            </div>
         </div>
       </div>
 
@@ -266,25 +523,52 @@ const App: React.FC = () => {
                     <div className="text-xs text-[#39ff14] font-bold tracking-widest flex items-center gap-2 neon-text-green">
                         <Zap size={14} /> SEQUENCE_MATRIX
                     </div>
-                    <div className="text-[10px] text-gray-500">
-                        TRACKS: {song.tracks.length} // STEPS: 16
+                    <div className="flex items-center gap-3 flex-wrap">
+                        <span className="text-[10px] text-gray-500">TRACKS: {song.tracks.length}</span>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500">STEPS:</span>
+                            {([8, 16, 32] as const).map((n) => (
+                                <button key={n} onClick={() => setSong(prev => ({ ...prev, stepsPerPattern: n }))} className={`px-2 py-0.5 text-[10px] border ${song.stepsPerPattern === n ? 'border-[#39ff14] bg-[#39ff14] text-black' : 'border-gray-600 text-gray-400 hover:border-gray-500'}`}>{n}</button>
+                            ))}
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-500">SWING:</span>
+                            <input type="range" min={0} max={100} value={song.swing} onChange={(e) => setSong(prev => ({ ...prev, swing: Number(e.target.value) }))} className="w-16 h-1.5 accent-[#b026ff]" aria-label="Swing amount" />
+                            <span className="text-[9px] text-gray-500 w-6">{song.swing}%</span>
+                        </div>
+                        <button onClick={addTrack} className="flex items-center gap-1 px-2 py-1 text-[10px] border border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black" title="Add track"><Plus size={10} /> ADD</button>
                     </div>
                 </div>
-                
+
                 <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                     {song.tracks.map((track) => (
-                        <div 
-                            key={track.id} 
-                            onClick={() => setSelectedTrackId(track.id)}
-                            className={`transition-all duration-200 cursor-pointer p-1 rounded border-l-2 relative overflow-hidden group ${selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'}`}
+                        <div
+                            key={track.id}
+                            className={`transition-all duration-200 p-1 rounded border-l-2 relative overflow-hidden group ${selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'}`}
                         >
-                            {selectedTrackId === track.id && <div className="absolute inset-0 bg-gradient-to-r from-[#b026ff]/10 to-transparent pointer-events-none"></div>}
-                            <Sequencer 
-                                track={track} 
-                                currentStep={currentStep} 
-                                selectedStep={selectedStep}
-                                onStepSelect={(step) => setSelectedStep(step)}
-                            />
+                            {selectedTrackId === track.id && <div className="absolute inset-0 bg-gradient-to-r from-[#b026ff]/10 to-transparent pointer-events-none" />}
+                            <div className="flex items-center gap-2 w-full">
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button onClick={() => setTrackMuted(track.id, !track.muted)} className={`w-7 h-7 flex items-center justify-center text-[10px] font-bold border ${track.muted ? 'bg-[#ff0055]/30 border-[#ff0055] text-[#ff0055]' : 'border-gray-600 text-gray-400 hover:border-gray-500'}`} title={track.muted ? 'Unmute' : 'Mute'}>M</button>
+                                    <button onClick={() => setTrackSolo(track.id, !track.solo)} className={`w-7 h-7 flex items-center justify-center text-[10px] font-bold border ${track.solo ? 'bg-[#39ff14]/30 border-[#39ff14] text-[#39ff14]' : 'border-gray-600 text-gray-400 hover:border-gray-500'}`} title={track.solo ? 'Unsolo' : 'Solo'}>S</button>
+                                </div>
+                                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSelectedTrackId(track.id)}>
+                                    <Sequencer
+                                        track={track}
+                                        stepsPerPattern={song.stepsPerPattern}
+                                        currentStep={currentStep}
+                                        selectedStep={selectedStep}
+                                        onStepSelect={(step) => setSelectedStep(step)}
+                                        onStepToggle={(step) => handleStepToggle(track.id, step)}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                    <button onClick={() => moveTrack(track.id, 'up')} disabled={song.tracks.indexOf(track) === 0} className="w-6 h-8 flex items-center justify-center border border-gray-700 text-gray-500 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-30" title="Move up">↑</button>
+                                    <button onClick={() => moveTrack(track.id, 'down')} disabled={song.tracks.indexOf(track) === song.tracks.length - 1} className="w-6 h-8 flex items-center justify-center border border-gray-700 text-gray-500 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-30" title="Move down">↓</button>
+                                    <button onClick={() => duplicateTrack(track.id)} className="w-6 h-8 flex items-center justify-center border border-gray-700 text-gray-500 hover:border-[#39ff14] hover:text-[#39ff14]" title="Duplicate"><Copy size={12} /></button>
+                                    <button onClick={() => removeTrack(track.id)} disabled={song.tracks.length <= 1} className="w-6 h-8 flex items-center justify-center border border-gray-700 text-gray-500 hover:border-[#ff0055] hover:text-[#ff0055] disabled:opacity-30" title="Remove"><Trash2 size={12} /></button>
+                                </div>
+                            </div>
                         </div>
                     ))}
                 </div>
@@ -319,6 +603,13 @@ const App: React.FC = () => {
 
                  {selectedTrack && (
                      <div className="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1 pb-4">
+                        <div className="bg-black/40 p-4 rounded border border-gray-800 relative group hover:border-[#b026ff]/50 transition-colors">
+                            <div className="absolute -top-2 left-3 bg-black px-1 text-[10px] text-[#b026ff] uppercase tracking-wider font-bold">Track Mix</div>
+                            <div className="flex flex-wrap justify-between mt-2">
+                                <Knob label="VOL" value={selectedTrack.volume} min={0} max={2} onChange={(v) => setTrackVolume(selectedTrack.id, v)} color="text-[#b026ff]" />
+                                <Knob label="PAN" value={selectedTrack.pan} min={-1} max={1} onChange={(v) => setTrackPan(selectedTrack.id, v)} color="text-[#b026ff]" />
+                            </div>
+                        </div>
                         <div className="bg-black/40 p-4 rounded border border-gray-800 relative group hover:border-[#39ff14]/50 transition-colors">
                             <div className="absolute -top-2 left-3 bg-black px-1 text-[10px] text-[#39ff14] uppercase tracking-wider font-bold">Envelope (ADSR)</div>
                             <div className="flex flex-wrap justify-between mt-2">
