@@ -59,6 +59,9 @@ export async function generateAudioFromText(
     return ok({ url: data.url });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    if (message === 'Failed to fetch' || (e as Error & { code?: string })?.code === 'ERR_NETWORK_CHANGED') {
+      return err(new Error('Network error. Check your connection and try again.'));
+    }
     return err(new Error(message));
   }
 }
