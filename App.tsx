@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Volume2, Music } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
 import { generateAudioFromText } from './services/textToAudioService';
+import { createGeneratedAudioTrack } from './lib/createGeneratedAudioTrack';
 import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './services/storageService';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { isErr } from './lib/result';
@@ -128,18 +129,10 @@ const App: React.FC = () => {
       return;
     }
 
-    const newTrack: Track = {
+    const newTrack = createGeneratedAudioTrack(result.value.url, {
       id: nextTrackId(),
       name: 'Generated',
-      type: 'audio',
-      notes: [],
-      params: { waveform: 'sine', attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 1000, filterRes: 1, gain: 0.5 },
-      muted: false,
-      solo: false,
-      volume: 1,
-      pan: 0,
-      audioUrl: result.value.url,
-    };
+    });
     setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
     setSelectedTrackId(newTrack.id);
     setIsGenerating(false);

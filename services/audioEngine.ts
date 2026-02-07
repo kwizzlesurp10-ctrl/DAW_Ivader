@@ -1,5 +1,19 @@
 import { SongData, Track, NoteEvent, SynthParams } from '../types';
 
+/**
+ * Audio engine: real Web Audio API only. No mock or simulation mode in runtime.
+ * Production (including Vercel): VITE_AUDIO_MOCK and VITE_SIMULATE_AUDIO must not be set.
+ */
+const isProd = typeof import.meta !== 'undefined' && import.meta.env?.PROD === true;
+const mockEnvSet =
+  typeof import.meta !== 'undefined' &&
+  (import.meta.env?.VITE_AUDIO_MOCK === 'true' || import.meta.env?.VITE_SIMULATE_AUDIO === 'true');
+if (isProd && mockEnvSet) {
+  throw new Error(
+    'Mock/simulation audio is disabled in production. Do not set VITE_AUDIO_MOCK or VITE_SIMULATE_AUDIO in Vercel or any production environment. See DEPLOY.md.'
+  );
+}
+
 // Frequency map for notes
 const NOTE_FREQUENCIES: Record<string, number> = {
   'C2': 65.41, 'C#2': 69.30, 'D2': 73.42, 'D#2': 77.78, 'E2': 82.41, 'F2': 87.31, 'F#2': 92.50, 'G2': 98.00, 'G#2': 103.83, 'A2': 110.00, 'A#2': 116.54, 'B2': 123.47,

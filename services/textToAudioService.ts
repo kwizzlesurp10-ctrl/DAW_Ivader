@@ -1,38 +1,66 @@
 import { ok, err, type Result } from '../lib/result';
+import {
+  generateAudioRequestSchema,
+  generateAudioResponseSchema,
+  type GenerateAudioRequest,
+  type GenerateAudioSuccess,
+  GENERATE_AUDIO_DURATION_DEFAULT,
+} from '../schemas/generateAudioSchema';
 
-export interface GenerateAudioResult {
-  url: string;
-}
+/** Client-side result type for successful generation. */
+export type GenerateAudioResult = GenerateAudioSuccess;
+
+/** Timeout (ms) — matches API maxDuration. */
+const FETCH_TIMEOUT_MS = 90_000;
 
 /**
  * Call the app's serverless API to generate audio from text (MusicGen).
- * In production the API runs on the same origin; in dev use Vite proxy or full URL.
+ * In production the API runs on the same origin; in dev use Vercel dev or full URL.
+ *
+ * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
+ * @param durationSeconds - Clip length 1–30 seconds. Default 8.
+ * @returns Result with { url } on success, or Error on failure.
  */
 export async function generateAudioFromText(
   prompt: string,
-  durationSeconds: number = 8
+  durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT
 ): Promise<Result<GenerateAudioResult, Error>> {
-  const trimmed = prompt.trim();
-  if (!trimmed) {
-    return err(new Error('Prompt is required'));
+  const parseResult = generateAudioRequestSchema.safeParse({
+    prompt: prompt.trim(),
+    duration: durationSeconds,
+  });
+  if (!parseResult.success) {
+    const e = parseResult.error as { message?: string; issues?: Array<{ message?: string }> };
+    const msg =
+      (Array.isArray(e.issues) ? e.issues.map((i) => i.message).join('; ') : null) ||
+      e.message ||
+      'Invalid prompt';
+    return err(new Error(msg));
   }
+  const { prompt: trimmed, duration } = parseResult.data;
 
   const apiBase =
     typeof window !== 'undefined'
       ? window.location.origin
-      : process.env.VITE_APP_URL ?? '';
+      : (process.env.VITE_APP_URL as string | undefined) ?? '';
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
+    const body: GenerateAudioRequest = { prompt: trimmed, duration };
     const res = await fetch(`${apiBase}/api/generate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: trimmed, duration: durationSeconds }),
+      body: JSON.stringify(body),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const text = await res.text();
-    let data: { url?: string; error?: string };
+    let data: unknown;
     try {
-      data = text ? (JSON.parse(text) as { url?: string; error?: string }) : {};
+      data = text ? JSON.parse(text) : {};
     } catch {
       return err(
         new Error(
@@ -44,23 +72,46 @@ export async function generateAudioFromText(
     }
 
     if (!res.ok) {
+      if (res.status === 404) {
+        return err(
+          new Error(
+            'Generate API not found. Run the app with "vercel dev" (not npm run dev) so /api/generate-audio is available.'
+          )
+        );
+      }
+      const parsed = generateAudioResponseSchema.safeParse(data);
       const msg =
-        data.error ??
-        (res.status === 404
-          ? 'Generate API not found. Run the app with "vercel dev" (not npm run dev) so /api/generate-audio is available.'
-          : `HTTP ${res.status}`);
+        parsed.success && 'error' in parsed.data
+          ? parsed.data.error
+          : `HTTP ${res.status}`;
       return err(new Error(msg));
     }
 
-    if (!data.url || typeof data.url !== 'string') {
+    const parsed = generateAudioResponseSchema.safeParse(data);
+    const url =
+      parsed.success &&
+      'url' in parsed.data &&
+      typeof parsed.data.url === 'string'
+        ? parsed.data.url
+        : null;
+    if (!url) {
       return err(new Error('Invalid response: no audio URL'));
     }
 
-    return ok({ url: data.url });
+    return ok({ url });
   } catch (e) {
+    clearTimeout(timeoutId);
     const message = e instanceof Error ? e.message : String(e);
-    if (message === 'Failed to fetch' || (e as Error & { code?: string })?.code === 'ERR_NETWORK_CHANGED') {
-      return err(new Error('Network error. Check your connection and try again.'));
+    if (
+      message === 'Failed to fetch' ||
+      (e as Error & { code?: string })?.code === 'ERR_NETWORK_CHANGED'
+    ) {
+      return err(
+        new Error('Network error. Check your connection and try again.')
+      );
+    }
+    if ((e as Error & { name?: string })?.name === 'AbortError') {
+      return err(new Error('Request timed out. Try again.'));
     }
     return err(new Error(message));
   }
