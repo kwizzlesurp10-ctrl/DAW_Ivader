@@ -125,7 +125,8 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    const result = await generateAudioFromText(prompt, 8);
+    // Use stereo-melody-large model for premium stereo output with melody support
+    const result = await generateAudioFromText(prompt, 8, 'stereo-melody-large');
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
@@ -470,7 +471,7 @@ const App: React.FC = () => {
                     type="text" 
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM') — Generate creates an audio clip and adds it as a track"
+                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM') — Premium stereo model with melody support"
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />

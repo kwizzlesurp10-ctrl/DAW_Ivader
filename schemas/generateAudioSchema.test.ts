@@ -73,6 +73,56 @@ describe('generateAudioSchema', () => {
       if (result.success) expect(result.data.prompt).toHaveLength(GENERATE_AUDIO_PROMPT_MAX_LENGTH);
     });
 
+    it('accepts valid model_version large', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        model_version: 'large',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.model_version).toBe('large');
+    });
+
+    it('accepts valid model_version stereo-large', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        model_version: 'stereo-large',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.model_version).toBe('stereo-large');
+    });
+
+    it('accepts valid model_version melody-large', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        model_version: 'melody-large',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.model_version).toBe('melody-large');
+    });
+
+    it('accepts valid model_version stereo-melody-large', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        model_version: 'stereo-melody-large',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.model_version).toBe('stereo-melody-large');
+    });
+
+    it('defaults to large model when model_version omitted', () => {
+      const result = generateAudioRequestSchema.safeParse({ prompt: 'test' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.model_version).toBe('large');
+    });
+
+    it('rejects invalid model_version', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        model_version: 'invalid-model',
+      });
+      expect(result.success).toBe(false);
+    });
+
     it('rejects prompt over max length', () => {
       const tooLong = 'x'.repeat(GENERATE_AUDIO_PROMPT_MAX_LENGTH + 1);
       const result = generateAudioRequestSchema.safeParse({ prompt: tooLong });
@@ -112,6 +162,19 @@ describe('generateAudioSchema', () => {
       if (result.ok) {
         expect(result.data.prompt).toBe('test');
         expect(result.data.duration).toBe(5);
+        expect(result.data.model_version).toBe('large');
+      }
+    });
+
+    it('returns ok with custom model_version', () => {
+      const result = parseGenerateAudioRequest({
+        prompt: 'test',
+        duration: 5,
+        model_version: 'stereo-large',
+      });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.model_version).toBe('stereo-large');
       }
     });
 

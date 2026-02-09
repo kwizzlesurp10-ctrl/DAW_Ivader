@@ -56,7 +56,7 @@ describe('textToAudioService (communication layer)', () => {
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'dark bass', duration: 8 }),
+          body: JSON.stringify({ prompt: 'dark bass', duration: 8, model_version: 'large' }),
         })
       );
     });
@@ -74,7 +74,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8 }),
+          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'large' }),
         })
       );
     });
@@ -92,7 +92,43 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 15 }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'large' }),
+        })
+      );
+    });
+
+    it('passes custom model_version when provided', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: () => Promise.resolve(JSON.stringify({ url: 'https://x.com/a.wav' })),
+      });
+
+      await generateAudioFromText('test', 8, 'stereo-large');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'stereo-large' }),
+        })
+      );
+    });
+
+    it('defaults to large model when model_version not provided', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: () => Promise.resolve(JSON.stringify({ url: 'https://x.com/a.wav' })),
+      });
+
+      await generateAudioFromText('test');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'large' }),
         })
       );
     });

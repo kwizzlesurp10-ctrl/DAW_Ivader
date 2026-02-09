@@ -9,6 +9,24 @@ export const GENERATE_AUDIO_DURATION_DEFAULT = 8;
 export const GENERATE_AUDIO_PROMPT_MAX_LENGTH = 2000;
 
 /**
+ * Available MusicGen model versions on Replicate.
+ * - large: 3.3B parameters, mono output (default)
+ * - stereo-large: 3.3B parameters, stereo output (premium)
+ * - melody-large: 3.3B parameters, supports melody conditioning (premium)
+ * - stereo-melody-large: 3.3B parameters, stereo + melody conditioning (premium)
+ */
+export const MUSICGEN_MODEL_VERSIONS = [
+  'large',
+  'stereo-large',
+  'melody-large',
+  'stereo-melody-large',
+] as const;
+
+export type MusicGenModelVersion = (typeof MUSICGEN_MODEL_VERSIONS)[number];
+
+export const MUSICGEN_MODEL_VERSION_DEFAULT: MusicGenModelVersion = 'large';
+
+/**
  * Request body for POST /api/generate-audio.
  * Validated with Zod on both client (before send) and server.
  */
@@ -29,6 +47,10 @@ export const generateAudioRequestSchema = z.object({
     .transform((v) =>
       Math.max(GENERATE_AUDIO_DURATION_MIN, Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(v)))
     ),
+  model_version: z
+    .enum(MUSICGEN_MODEL_VERSIONS)
+    .optional()
+    .default(MUSICGEN_MODEL_VERSION_DEFAULT),
 });
 
 export type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;
