@@ -11,7 +11,6 @@ import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
 import { AudioSampler } from './components/AudioSampler';
-import type { MusicGenModelVersion } from './schemas/generateAudioSchema';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
