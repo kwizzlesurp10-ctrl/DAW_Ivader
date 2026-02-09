@@ -10,6 +10,7 @@ import { SongData, Track, PlayState } from './types';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
+import { LoopLibrary, type MusicLoop } from './components/LoopLibrary';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -73,6 +74,15 @@ const App: React.FC = () => {
   const [initialized, setInitialized] = useState(false);
   const [masterVolume, setMasterVolume] = useState(() => audioEngine.getMasterVolume());
   const [metronomeOn, setMetronomeOn] = useState(false);
+  const [loops, setLoops] = useState<MusicLoop[]>(() => {
+    try {
+      const saved = localStorage.getItem('daw_music_loops');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -85,6 +95,14 @@ const App: React.FC = () => {
   useEffect(() => {
     audioEngine.setMetronomeEnabled(metronomeOn);
   }, [metronomeOn]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('daw_music_loops', JSON.stringify(loops));
+    } catch (e) {
+      console.error('Failed to save loops to localStorage:', e);
+    }
+  }, [loops]);
 
   // Handle Playback Loop Visualization
   useEffect(() => {
@@ -129,13 +147,60 @@ const App: React.FC = () => {
       return;
     }
 
-    const newTrack = createGeneratedAudioTrack(result.value.url, {
-      id: nextTrackId(),
-      name: 'Generated',
-    });
-    setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
-    setSelectedTrackId(newTrack.id);
+    // Create a new loop and add it to the library
+    const newLoop: MusicLoop = {
+      id: 'loop_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+      name: `Loop ${loops.length + 1}`,
+      url: result.value.url,
+      duration: 8,
+      prompt: prompt.trim(),
+      createdAt: Date.now(),
+    };
+    setLoops(prev => [...prev, newLoop]);
+    setPrompt('');
     setIsGenerating(false);
+  };
+
+  const handleDeleteLoop = (loopId: string) => {
+    setLoops(prev => prev.filter(l => l.id !== loopId));
+  };
+
+  const handleLoopDragStart = (loop: MusicLoop) => {
+    setDraggedLoop(loop);
+  };
+
+  const handleTrackDrop = (e: React.DragEvent, trackId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      const loop: MusicLoop = JSON.parse(data);
+      
+      // Create a new audio track from the dropped loop
+      const newTrack = createGeneratedAudioTrack(loop.url, {
+        id: nextTrackId(),
+        name: loop.name,
+      });
+      
+      // Replace the target track with the new audio track
+      const trackIndex = song.tracks.findIndex(t => t.id === trackId);
+      if (trackIndex === -1) return;
+      
+      const newTracks = [...song.tracks];
+      newTracks[trackIndex] = newTrack;
+      setSong(prev => ({ ...prev, tracks: newTracks }));
+      setSelectedTrackId(newTrack.id);
+    } catch (err) {
+      console.error('Failed to handle drop:', err);
+    }
+    
+    setDraggedLoop(null);
+  };
+
+  const handleTrackDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
@@ -530,7 +595,9 @@ const App: React.FC = () => {
                     {song.tracks.map((track) => (
                         <div
                             key={track.id}
-                            className={`transition-all duration-200 p-1 rounded border-l-2 relative overflow-hidden group ${selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'}`}
+                            className={`transition-all duration-200 p-1 rounded border-l-2 relative overflow-hidden group ${selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'} ${draggedLoop ? 'hover:border-[#39ff14] hover:bg-[#39ff14]/10' : ''}`}
+                            onDrop={(e) => handleTrackDrop(e, track.id)}
+                            onDragOver={handleTrackDragOver}
                         >
                             {selectedTrackId === track.id && <div className="absolute inset-0 bg-gradient-to-r from-[#b026ff]/10 to-transparent pointer-events-none" />}
                             <div className="flex items-center gap-2 w-full">
@@ -672,6 +739,15 @@ const App: React.FC = () => {
                  )}
             </div>
         </div>
+      </div>
+      
+      {/* Loop Library Section */}
+      <div className="max-w-[1400px] w-full mx-auto mt-6">
+        <LoopLibrary 
+          loops={loops} 
+          onDeleteLoop={handleDeleteLoop}
+          onDragStart={handleLoopDragStart}
+        />
       </div>
       
       {/* Footer Decoration */}
