@@ -7,9 +7,10 @@ const MUSICGEN_MODEL =
 
 /**
  * Vercel serverless: POST /api/generate-audio
- * Body: { prompt: string, duration?: number } — validated with Zod.
+ * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
  * Returns: { url: string } | { error: string }
  * Uses Meta MusicGen via Replicate. Set REPLICATE_API_TOKEN in Vercel env.
+ * Supports premium models: stereo-large, melody-large, stereo-melody-large.
  */
 export const config = { maxDuration: 120 };
 
@@ -68,13 +69,13 @@ async function handleRequest(request: Request): Promise<Response> {
   if (!parseResult.ok) {
     return jsonResponse({ error: parseResult.error }, 400);
   }
-  const { prompt, duration } = parseResult.data;
+  const { prompt, duration, model_version } = parseResult.data;
 
   let output: unknown;
   try {
     const replicate = new Replicate({ auth: token });
     output = await replicate.run(MUSICGEN_MODEL, {
-      input: { prompt, duration },
+      input: { prompt, duration, model_version },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
