@@ -123,7 +123,7 @@ describe('generateAudioSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('rejects prompt at max length boundary', () => {
+    it('rejects prompt over max length', () => {
       const tooLong = 'x'.repeat(GENERATE_AUDIO_PROMPT_MAX_LENGTH + 1);
       const result = generateAudioRequestSchema.safeParse({ prompt: tooLong });
       expect(result.success).toBe(false);
