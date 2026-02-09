@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { Upload, Mic, MicOff, Scissors, Play, Square, RotateCcw } from 'lucide-react';
 
 interface AudioSamplerProps {
-  onAudioLoaded: (audioUrl: string, name: string) => void;
+  onAudioLoaded: (audioUrl: string, name: string, trimStart?: number, trimEnd?: number) => void;
 }
 
 export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => {
@@ -143,14 +143,10 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => 
     if (!audioPreviewUrl) return;
 
     try {
-      // If we have trimming, we need to create a trimmed version
-      if (startTime > 0 || endTime < duration) {
-        // For now, we'll just pass the full URL with metadata
-        // The audioEngine will handle the trimming during playback
-        onAudioLoaded(audioPreviewUrl, audioFileName || 'Sample');
-      } else {
-        onAudioLoaded(audioPreviewUrl, audioFileName || 'Sample');
-      }
+      // Pass trim information if audio is trimmed
+      const trimStart = startTime > 0 ? startTime : undefined;
+      const trimEnd = endTime < duration ? endTime : undefined;
+      onAudioLoaded(audioPreviewUrl, audioFileName || 'Sample', trimStart, trimEnd);
       
       // Reset
       handleReset();

@@ -141,11 +141,18 @@ const App: React.FC = () => {
     setIsGenerating(false);
   };
 
-  const handleAudioSamplerLoaded = (audioUrl: string, name: string) => {
+  const handleAudioSamplerLoaded = (audioUrl: string, name: string, trimStart?: number, trimEnd?: number) => {
     const newTrack = createGeneratedAudioTrack(audioUrl, {
       id: nextTrackId(),
       name: name || 'Sample',
     });
+    // Add trim information if provided
+    if (trimStart !== undefined) {
+      newTrack.audioTrimStart = trimStart;
+    }
+    if (trimEnd !== undefined) {
+      newTrack.audioTrimEnd = trimEnd;
+    }
     setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
     setSelectedTrackId(newTrack.id);
   };
