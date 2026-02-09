@@ -80,6 +80,15 @@ const App: React.FC = () => {
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
+  const [loops, setLoops] = useState<MusicLoop[]>(() => {
+    try {
+      const saved = localStorage.getItem('daw_music_loops');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -159,19 +168,71 @@ const App: React.FC = () => {
   };
 
   const handleAudioSamplerLoaded = (audioUrl: string, name: string, trimStart?: number, trimEnd?: number) => {
-    const newTrack = createGeneratedAudioTrack(audioUrl, {
-      id: nextTrackId(),
+    // Create a new loop from the sampled audio and add it to the library
+    const newLoop: MusicLoop = {
+      id: nextLoopId(),
       name: name || 'Sample',
-    });
-    // Add trim information if provided
-    if (trimStart !== undefined) {
-      newTrack.audioTrimStart = trimStart;
+      url: audioUrl,
+      duration: trimEnd !== undefined && trimStart !== undefined ? trimEnd - trimStart : 8,
+      prompt: 'Uploaded/recorded audio sample',
+      createdAt: Date.now(),
+      trimStart,
+      trimEnd,
+    };
+    setLoops(prev => [...prev, newLoop]);
+  };
+
+  const handleDeleteLoop = (loopId: string) => {
+    setLoops(prev => prev.filter(l => l.id !== loopId));
+  };
+
+  const handleLoopDragStart = (loop: MusicLoop) => {
+    setDraggedLoop(loop);
+  };
+
+  const handleLoopDrop = (e: React.DragEvent, trackId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      const loop: MusicLoop = JSON.parse(data);
+      
+      // Create a new audio track from the dropped loop
+      const newTrack = createGeneratedAudioTrack(loop.url, {
+        id: nextTrackId(),
+        name: loop.name,
+      });
+      
+      // Add trim information if provided in the loop
+      if (loop.trimStart !== undefined) {
+        newTrack.audioTrimStart = loop.trimStart;
+      }
+      if (loop.trimEnd !== undefined) {
+        newTrack.audioTrimEnd = loop.trimEnd;
+      }
+      
+      // Replace the target track with the new audio track
+      const trackIndex = song.tracks.findIndex(t => t.id === trackId);
+      if (trackIndex === -1) {
+        console.error('Track not found for drop operation:', trackId);
+        return;
+      }
+      
+      const newTracks = [...song.tracks];
+      newTracks[trackIndex] = newTrack;
+      setSong(prev => ({ ...prev, tracks: newTracks }));
+      setSelectedTrackId(newTrack.id);
+    } catch (err) {
+      console.error('Failed to handle loop drop:', err);
     }
-    if (trimEnd !== undefined) {
-      newTrack.audioTrimEnd = trimEnd;
-    }
-    setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
-    setSelectedTrackId(newTrack.id);
+    
+    setDraggedLoop(null);
+  };
+
+  const handleLoopDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
@@ -322,6 +383,23 @@ const App: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, targetTrackId: string) => {
     e.preventDefault();
+    
+    // Check if this is a loop drop by trying to get loop data
+    try {
+      const loopData = e.dataTransfer.getData('application/json');
+      if (loopData) {
+        const loop: MusicLoop = JSON.parse(loopData);
+        // If it has loop properties, treat it as a loop drop
+        if (loop.url && loop.name) {
+          handleLoopDrop(e, targetTrackId);
+          return;
+        }
+      }
+    } catch {
+      // Not a loop drop, continue with track reordering
+    }
+    
+    // Handle track reordering
     if (!draggedTrackId || draggedTrackId === targetTrackId) {
       setDraggedTrackId(null);
       setDropTargetTrackId(null);

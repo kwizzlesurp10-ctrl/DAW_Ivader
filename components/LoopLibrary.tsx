@@ -8,6 +8,8 @@ export interface MusicLoop {
   duration: number;
   prompt: string;
   createdAt: number;
+  trimStart?: number;
+  trimEnd?: number;
 }
 
 interface LoopLibraryProps {
