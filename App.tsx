@@ -10,7 +10,7 @@ import { SongData, Track, PlayState } from './types';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
-import { LoopLibrary, type MusicLoop } from './components/LoopLibrary';
+import { AudioSampler } from './components/AudioSampler';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -78,15 +78,8 @@ const App: React.FC = () => {
   const [initialized, setInitialized] = useState(false);
   const [masterVolume, setMasterVolume] = useState(() => audioEngine.getMasterVolume());
   const [metronomeOn, setMetronomeOn] = useState(false);
-  const [loops, setLoops] = useState<MusicLoop[]>(() => {
-    try {
-      const saved = localStorage.getItem('daw_music_loops');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
+  const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
+  const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -165,49 +158,20 @@ const App: React.FC = () => {
     setIsGenerating(false);
   };
 
-  const handleDeleteLoop = (loopId: string) => {
-    setLoops(prev => prev.filter(l => l.id !== loopId));
-  };
-
-  const handleLoopDragStart = (loop: MusicLoop) => {
-    setDraggedLoop(loop);
-  };
-
-  const handleTrackDrop = (e: React.DragEvent, trackId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    try {
-      const data = e.dataTransfer.getData('application/json');
-      const loop: MusicLoop = JSON.parse(data);
-      
-      // Create a new audio track from the dropped loop
-      const newTrack = createGeneratedAudioTrack(loop.url, {
-        id: nextTrackId(),
-        name: loop.name,
-      });
-      
-      // Replace the target track with the new audio track
-      const trackIndex = song.tracks.findIndex(t => t.id === trackId);
-      if (trackIndex === -1) {
-        console.error('Track not found for drop operation:', trackId);
-        return;
-      }
-      
-      const newTracks = [...song.tracks];
-      newTracks[trackIndex] = newTrack;
-      setSong(prev => ({ ...prev, tracks: newTracks }));
-      setSelectedTrackId(newTrack.id);
-    } catch (err) {
-      console.error('Failed to handle drop:', err);
+  const handleAudioSamplerLoaded = (audioUrl: string, name: string, trimStart?: number, trimEnd?: number) => {
+    const newTrack = createGeneratedAudioTrack(audioUrl, {
+      id: nextTrackId(),
+      name: name || 'Sample',
+    });
+    // Add trim information if provided
+    if (trimStart !== undefined) {
+      newTrack.audioTrimStart = trimStart;
     }
-    
-    setDraggedLoop(null);
-  };
-
-  const handleTrackDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    if (trimEnd !== undefined) {
+      newTrack.audioTrimEnd = trimEnd;
+    }
+    setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
+    setSelectedTrackId(newTrack.id);
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
@@ -337,6 +301,54 @@ const App: React.FC = () => {
     const j = direction === 'up' ? i - 1 : i + 1;
     [newTracks[i], newTracks[j]] = [newTracks[j], newTracks[i]];
     setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const handleDragStart = (e: React.DragEvent, trackId: string) => {
+    setDraggedTrackId(trackId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, trackId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedTrackId && draggedTrackId !== trackId) {
+      setDropTargetTrackId(trackId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDropTargetTrackId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetTrackId: string) => {
+    e.preventDefault();
+    if (!draggedTrackId || draggedTrackId === targetTrackId) {
+      setDraggedTrackId(null);
+      setDropTargetTrackId(null);
+      return;
+    }
+
+    const draggedIndex = song.tracks.findIndex(t => t.id === draggedTrackId);
+    const targetIndex = song.tracks.findIndex(t => t.id === targetTrackId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedTrackId(null);
+      setDropTargetTrackId(null);
+      return;
+    }
+
+    const newTracks = [...song.tracks];
+    const [draggedTrack] = newTracks.splice(draggedIndex, 1);
+    newTracks.splice(targetIndex, 0, draggedTrack);
+    
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+    setDraggedTrackId(null);
+    setDropTargetTrackId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTrackId(null);
+    setDropTargetTrackId(null);
   };
 
   const handleSave = () => {
@@ -599,12 +611,25 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                    {song.tracks.map((track) => (
+                    {song.tracks.map((track) => {
+                        const isDragging = draggedTrackId === track.id;
+                        const isDropTarget = dropTargetTrackId === track.id;
+                        return (
                         <div
                             key={track.id}
-                            className={`transition-all duration-200 p-1 rounded border-l-2 relative overflow-hidden group ${selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'} ${draggedLoop ? 'hover:border-[#39ff14] hover:bg-[#39ff14]/10' : ''}`}
-                            onDrop={(e) => handleTrackDrop(e, track.id)}
-                            onDragOver={handleTrackDragOver}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, track.id)}
+                            onDragOver={(e) => handleDragOver(e, track.id)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, track.id)}
+                            onDragEnd={handleDragEnd}
+                            className={`transition-all duration-200 p-1 rounded border-l-2 relative overflow-hidden group cursor-move ${
+                                isDragging ? 'opacity-50 scale-95' : ''
+                            } ${
+                                isDropTarget ? 'border-[#39ff14] bg-[#39ff14]/20 shadow-[0_0_15px_rgba(57,255,20,0.4)]' : ''
+                            } ${
+                                selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'
+                            }`}
                         >
                             {selectedTrackId === track.id && <div className="absolute inset-0 bg-gradient-to-r from-[#b026ff]/10 to-transparent pointer-events-none" />}
                             <div className="flex items-center gap-2 w-full">
@@ -630,14 +655,21 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
 
         {/* Right Col: Synth Controls */}
-        <div className="lg:col-span-4 h-full min-h-0">
-            <div className="cyber-panel h-full p-4 flex flex-col relative bg-black/90 overflow-hidden">
+        <div className="lg:col-span-4 h-full min-h-0 flex flex-col gap-6">
+            {/* Audio Sampler Panel */}
+            <div className="shrink-0">
+                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} />
+            </div>
+            
+            {/* Synth Controls Panel */}
+            <div className="cyber-panel flex-1 p-4 flex flex-col relative bg-black/90 overflow-hidden min-h-[400px]">
                  <div className="absolute top-0 right-0 p-2 opacity-30 pointer-events-none">
                     <Activity size={100} className="text-[#39ff14]/10" />
                  </div>
