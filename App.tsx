@@ -16,6 +16,10 @@ function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
 }
 
+function nextLoopId(): string {
+  return 'loop_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+}
+
 /** Default steps per pattern and swing for new songs. */
 const DEFAULT_STEPS_PER_PATTERN = 16 as const;
 const DEFAULT_SWING = 0;
@@ -149,7 +153,7 @@ const App: React.FC = () => {
 
     // Create a new loop and add it to the library
     const newLoop: MusicLoop = {
-      id: 'loop_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6),
+      id: nextLoopId(),
       name: `Loop ${loops.length + 1}`,
       url: result.value.url,
       duration: 8,
@@ -185,7 +189,10 @@ const App: React.FC = () => {
       
       // Replace the target track with the new audio track
       const trackIndex = song.tracks.findIndex(t => t.id === trackId);
-      if (trackIndex === -1) return;
+      if (trackIndex === -1) {
+        console.error('Track not found for drop operation:', trackId);
+        return;
+      }
       
       const newTracks = [...song.tracks];
       newTracks[trackIndex] = newTrack;
