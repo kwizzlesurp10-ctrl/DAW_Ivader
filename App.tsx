@@ -10,6 +10,7 @@ import { SongData, Track, PlayState } from './types';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
+import { AudioSampler } from './components/AudioSampler';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -138,6 +139,22 @@ const App: React.FC = () => {
     setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
     setSelectedTrackId(newTrack.id);
     setIsGenerating(false);
+  };
+
+  const handleAudioSamplerLoaded = (audioUrl: string, name: string, trimStart?: number, trimEnd?: number) => {
+    const newTrack = createGeneratedAudioTrack(audioUrl, {
+      id: nextTrackId(),
+      name: name || 'Sample',
+    });
+    // Add trim information if provided
+    if (trimStart !== undefined) {
+      newTrack.audioTrimStart = trimStart;
+    }
+    if (trimEnd !== undefined) {
+      newTrack.audioTrimEnd = trimEnd;
+    }
+    setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
+    setSelectedTrackId(newTrack.id);
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
@@ -628,8 +645,14 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Col: Synth Controls */}
-        <div className="lg:col-span-4 h-full min-h-0">
-            <div className="cyber-panel h-full p-4 flex flex-col relative bg-black/90 overflow-hidden">
+        <div className="lg:col-span-4 h-full min-h-0 flex flex-col gap-6">
+            {/* Audio Sampler Panel */}
+            <div className="shrink-0">
+                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} />
+            </div>
+            
+            {/* Synth Controls Panel */}
+            <div className="cyber-panel flex-1 p-4 flex flex-col relative bg-black/90 overflow-hidden min-h-[400px]">
                  <div className="absolute top-0 right-0 p-2 opacity-30 pointer-events-none">
                     <Activity size={100} className="text-[#39ff14]/10" />
                  </div>

@@ -232,8 +232,14 @@ class AudioEngine {
     source.connect(trackGain);
     trackGain.connect(panner);
     panner.connect(this.masterGain);
-    source.start(time);
-    source.stop(time + buffer.duration);
+    
+    // Support trimmed audio playback
+    const startOffset = track.audioTrimStart ?? 0;
+    const duration = track.audioTrimEnd !== undefined 
+      ? track.audioTrimEnd - startOffset 
+      : buffer.duration - startOffset;
+    
+    source.start(time, startOffset, duration);
   }
 
   private playMetronomeClick(stepNumber: number, time: number): void {

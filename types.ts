@@ -21,6 +21,10 @@ export interface Track {
   pan: number;
   /** For type 'audio': URL of the generated or imported audio clip. Played from step 0. */
   audioUrl?: string;
+  /** For type 'audio': Optional trim start time in seconds */
+  audioTrimStart?: number;
+  /** For type 'audio': Optional trim end time in seconds */
+  audioTrimEnd?: number;
 }
 
 export interface SynthParams {
