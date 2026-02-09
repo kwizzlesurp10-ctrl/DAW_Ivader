@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Mic, MicOff, Scissors, Play, Square, RotateCcw } from 'lucide-react';
 
 interface AudioSamplerProps {
@@ -8,7 +8,6 @@ interface AudioSamplerProps {
 export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
   const [audioFileName, setAudioFileName] = useState<string>('');
   const [startTime, setStartTime] = useState(0);
@@ -19,6 +18,16 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const playbackIntervalRef = useRef<number | null>(null);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (playbackIntervalRef.current !== null) {
+        clearInterval(playbackIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -99,7 +108,6 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => 
         stream.getTracks().forEach(track => track.stop());
       };
 
-      setRecordedChunks([]);
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
@@ -118,21 +126,34 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => 
   const handlePlayPreview = () => {
     if (audioPreviewRef.current) {
       if (isPlaying) {
+        // Clear existing interval
+        if (playbackIntervalRef.current !== null) {
+          clearInterval(playbackIntervalRef.current);
+          playbackIntervalRef.current = null;
+        }
         audioPreviewRef.current.pause();
         audioPreviewRef.current.currentTime = startTime;
         setIsPlaying(false);
       } else {
+        // Clear any existing interval before starting new one
+        if (playbackIntervalRef.current !== null) {
+          clearInterval(playbackIntervalRef.current);
+        }
+        
         audioPreviewRef.current.currentTime = startTime;
         audioPreviewRef.current.play();
         setIsPlaying(true);
         
         // Stop at end time
-        const checkTime = setInterval(() => {
+        playbackIntervalRef.current = window.setInterval(() => {
           if (audioPreviewRef.current && audioPreviewRef.current.currentTime >= endTime) {
             audioPreviewRef.current.pause();
             audioPreviewRef.current.currentTime = startTime;
             setIsPlaying(false);
-            clearInterval(checkTime);
+            if (playbackIntervalRef.current !== null) {
+              clearInterval(playbackIntervalRef.current);
+              playbackIntervalRef.current = null;
+            }
           }
         }, 100);
       }
@@ -264,7 +285,7 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => 
                   max={duration}
                   step={0.1}
                   value={startTime}
-                  onChange={(e) => setStartTime(Math.min(Number(e.target.value), endTime))}
+                  onChange={(e) => setStartTime(Math.min(Number(e.target.value), endTime - 0.1))}
                   className="flex-1 h-1 accent-[#b026ff]"
                 />
                 <span className="text-[9px] text-gray-500 w-12 text-right">
@@ -279,7 +300,7 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => 
                   max={duration}
                   step={0.1}
                   value={endTime}
-                  onChange={(e) => setEndTime(Math.max(Number(e.target.value), startTime))}
+                  onChange={(e) => setEndTime(Math.max(Number(e.target.value), startTime + 0.1))}
                   className="flex-1 h-1 accent-[#b026ff]"
                 />
                 <span className="text-[9px] text-gray-500 w-12 text-right">
