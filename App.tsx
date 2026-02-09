@@ -73,6 +73,8 @@ const App: React.FC = () => {
   const [initialized, setInitialized] = useState(false);
   const [masterVolume, setMasterVolume] = useState(() => audioEngine.getMasterVolume());
   const [metronomeOn, setMetronomeOn] = useState(false);
+  const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
+  const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -265,6 +267,54 @@ const App: React.FC = () => {
     const j = direction === 'up' ? i - 1 : i + 1;
     [newTracks[i], newTracks[j]] = [newTracks[j], newTracks[i]];
     setSong(prev => ({ ...prev, tracks: newTracks }));
+  };
+
+  const handleDragStart = (e: React.DragEvent, trackId: string) => {
+    setDraggedTrackId(trackId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent, trackId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedTrackId && draggedTrackId !== trackId) {
+      setDropTargetTrackId(trackId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDropTargetTrackId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetTrackId: string) => {
+    e.preventDefault();
+    if (!draggedTrackId || draggedTrackId === targetTrackId) {
+      setDraggedTrackId(null);
+      setDropTargetTrackId(null);
+      return;
+    }
+
+    const draggedIndex = song.tracks.findIndex(t => t.id === draggedTrackId);
+    const targetIndex = song.tracks.findIndex(t => t.id === targetTrackId);
+    
+    if (draggedIndex === -1 || targetIndex === -1) {
+      setDraggedTrackId(null);
+      setDropTargetTrackId(null);
+      return;
+    }
+
+    const newTracks = [...song.tracks];
+    const [draggedTrack] = newTracks.splice(draggedIndex, 1);
+    newTracks.splice(targetIndex, 0, draggedTrack);
+    
+    setSong(prev => ({ ...prev, tracks: newTracks }));
+    setDraggedTrackId(null);
+    setDropTargetTrackId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTrackId(null);
+    setDropTargetTrackId(null);
   };
 
   const handleSave = () => {
@@ -527,10 +577,25 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                    {song.tracks.map((track) => (
+                    {song.tracks.map((track) => {
+                        const isDragging = draggedTrackId === track.id;
+                        const isDropTarget = dropTargetTrackId === track.id;
+                        return (
                         <div
                             key={track.id}
-                            className={`transition-all duration-200 p-1 rounded border-l-2 relative overflow-hidden group ${selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'}`}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, track.id)}
+                            onDragOver={(e) => handleDragOver(e, track.id)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, track.id)}
+                            onDragEnd={handleDragEnd}
+                            className={`transition-all duration-200 p-1 rounded border-l-2 relative overflow-hidden group cursor-move ${
+                                isDragging ? 'opacity-50 scale-95' : ''
+                            } ${
+                                isDropTarget ? 'border-[#39ff14] bg-[#39ff14]/20 shadow-[0_0_15px_rgba(57,255,20,0.4)]' : ''
+                            } ${
+                                selectedTrackId === track.id ? 'border-[#b026ff] bg-[#b026ff]/5' : 'border-gray-800 hover:bg-white/5'
+                            }`}
                         >
                             {selectedTrackId === track.id && <div className="absolute inset-0 bg-gradient-to-r from-[#b026ff]/10 to-transparent pointer-events-none" />}
                             <div className="flex items-center gap-2 w-full">
@@ -556,7 +621,8 @@ const App: React.FC = () => {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </div>
