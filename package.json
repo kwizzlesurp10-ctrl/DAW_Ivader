@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "validate:blueprint": "node scripts/validate-blueprint.mjs",
+    "validate:blueprint:coverage": "node scripts/validate-blueprint.mjs --coverage",
+    "start:all": "pnpm run validate:blueprint && pnpm run dev"
   },
   "dependencies": {
     "@google/genai": "^1.32.0",

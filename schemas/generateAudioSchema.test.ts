@@ -219,6 +219,16 @@ describe('generateAudioSchema', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.error).toBeTruthy();
     });
+
+    it('returns error for non-object input (array)', () => {
+      const result = parseGenerateAudioRequest([{ prompt: 'x' }]);
+      expect(result.ok).toBe(false);
+    });
+
+    it('returns error for non-object input (number)', () => {
+      const result = parseGenerateAudioRequest(42);
+      expect(result.ok).toBe(false);
+    });
   });
 
   describe('generateAudioResponseSchema', () => {

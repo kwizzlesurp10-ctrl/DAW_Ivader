@@ -76,4 +76,31 @@ describe('result', () => {
       expect(isErr(r) && r.error).toBe('old');
     });
   });
+
+  describe('adversarial / edge cases', () => {
+    it('unwrapOr with undefined default returns undefined for err', () => {
+      const r = err<number, Error>(new Error('x'));
+      expect(unwrapOr(r, undefined as unknown as number)).toBeUndefined();
+    });
+    it('unwrapOrElse is not invoked for ok', () => {
+      let called = false;
+      unwrapOrElse(ok(1), () => {
+        called = true;
+        return 0;
+      });
+      expect(called).toBe(false);
+    });
+    it('mapResult with identity preserves err', () => {
+      const e = new Error('e');
+      const r = mapResult(err<number, Error>(e), (n) => n);
+      expect(isErr(r)).toBe(true);
+      if (isErr(r)) expect(r.error).toBe(e);
+    });
+    it('mapError with identity preserves err value', () => {
+      const e = new Error('e');
+      const r = mapError(err<number, Error>(e), (x) => x);
+      expect(isErr(r)).toBe(true);
+      if (isErr(r)) expect(r.error).toBe(e);
+    });
+  });
 });

@@ -1,5 +1,7 @@
 # Architecture
 
+**Intent blueprint:** For intent graph, extension points, and dev-acceleration metrics see [docs/INTENT_BLUEPRINT.md](INTENT_BLUEPRINT.md). Validate with `pnpm run validate:blueprint` (or `validate:blueprint:coverage`).
+
 ## Stack
 
 - **React 19** + **Vite 6** + **TypeScript 5.8** (strict)

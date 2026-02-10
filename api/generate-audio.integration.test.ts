@@ -81,7 +81,7 @@ describe('api/generate-audio (communication layer)', () => {
   });
 
   describe('auth', () => {
-    it('returns 500 when REPLICATE_API_TOKEN is missing', async () => {
+    it('returns 503 when REPLICATE_API_TOKEN is missing', async () => {
       delete process.env.REPLICATE_API_TOKEN;
       vi.resetModules();
       const mod = await import('./generate-audio');
@@ -95,7 +95,7 @@ describe('api/generate-audio (communication layer)', () => {
         })
       );
 
-      expect(res.status).toBe(500);
+      expect(res.status).toBe(503);
       const data = await res.json();
       expect(data.error).toContain('REPLICATE_API_TOKEN');
     });

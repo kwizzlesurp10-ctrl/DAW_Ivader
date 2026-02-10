@@ -113,5 +113,23 @@ describe('storageService', () => {
       const result = importSongFromJson(JSON.stringify({ title: 'X', bpm: 120, tracks: [] }));
       expect(isErr(result)).toBe(true);
     });
+
+    it('returns err for empty string', () => {
+      const result = importSongFromJson('');
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Import failed');
+    });
+
+    it('returns err for JSON with null tracks', () => {
+      const result = importSongFromJson(JSON.stringify({ title: 'X', bpm: 120, tracks: null }));
+      expect(isErr(result)).toBe(true);
+    });
+
+    it('returns err for JSON with bpm out of range', () => {
+      const result = importSongFromJson(
+        JSON.stringify({ title: 'X', bpm: 0, stepsPerPattern: 16, swing: 0, tracks: validSong.tracks })
+      );
+      expect(isErr(result)).toBe(true);
+    });
   });
 });
