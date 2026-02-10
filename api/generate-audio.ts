@@ -35,6 +35,7 @@ export default async function handler(request: Request): Promise<Response> {
     return await handleRequest(request);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.error('[generate-audio]', message);
     return jsonResponse({ error: `Server error: ${message}` }, 500);
   }
 }
@@ -52,9 +53,9 @@ async function handleRequest(request: Request): Promise<Response> {
     return jsonResponse(
       {
         error:
-          'REPLICATE_API_TOKEN is not set. Add it in Vercel project settings.',
+          'REPLICATE_API_TOKEN is not set. Add it in Vercel: Project → Settings → Environment Variables, then redeploy.',
       },
-      500
+      503
     );
   }
 

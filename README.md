@@ -70,6 +70,7 @@ The **Generate** button uses Meta MusicGen via Replicate. To enable it:
 1. **Get a Replicate token**  
    Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens), sign in, and create an API token.
 
+
 2. **Local**
    - In project root create or edit `.env.local` and add:
      ```bash
