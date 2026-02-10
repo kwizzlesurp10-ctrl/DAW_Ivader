@@ -41,6 +41,8 @@ export const trackSchema = z.object({
   volume: z.number().min(0).max(2).optional(),
   pan: z.number().min(-1).max(1).optional(),
   audioUrl: z.string().url().optional(),
+  audioTrimStart: z.number().min(0).optional(),
+  audioTrimEnd: z.number().min(0).optional(),
 });
 
 export const songDataSchema = z.object({
@@ -91,6 +93,8 @@ export function parseSongResponse(raw: unknown): Result<SongData, Error> {
       volume: t.volume ?? 1,
       pan: t.pan ?? 0,
       audioUrl: t.audioUrl,
+      audioTrimStart: t.audioTrimStart,
+      audioTrimEnd: t.audioTrimEnd,
     })),
   };
   return ok(song);

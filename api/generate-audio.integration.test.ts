@@ -250,12 +250,12 @@ describe('api/generate-audio (communication layer)', () => {
   });
 
   describe('handler outer catch', () => {
-    it('returns 500 when request causes handleRequest to throw', async () => {
+    it('returns 500 with Invalid request when request is null', async () => {
       const res = await handler(null as unknown as Request);
 
       expect(res.status).toBe(500);
       const data = await res.json();
-      expect(data.error).toContain('Server error');
+      expect(data.error).toBe('Invalid request');
     });
   });
 });

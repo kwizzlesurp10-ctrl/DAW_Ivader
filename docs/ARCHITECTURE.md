@@ -11,7 +11,7 @@
 
 ## Data flow
 
-1. **Song state** lives in `App` via `useUndoRedo(SongData)`. All edits go through `setState`, which pushes to history.
+1. **Song state** lives in `App` via `useUndoRedo(SongData)`. All edits go through `setState`, which pushes to history. **Song mutations** are pure functions in `lib/songMutations.ts` (addTrack, removeTrack, toggleStep, setBpm, etc.); App delegates to them so business logic is testable and isolated.
 2. **Audio engine** is a singleton (`services/audioEngine.ts`). `setSongData(song)` syncs the current song; playback uses `stepsPerPattern`, `swing`, `bpm`, and per-track `muted`/`solo`/`volume`/`pan`.
 3. **Step editing**: Sequencer calls `onStepToggle(step)`; App adds or removes a `NoteEvent` for that step (default note by track type).
 4. **Persistence**: `storageService` loads/saves JSON to localStorage and parses with `parseSongResponse` (Zod). Export/import use the same schema.
@@ -37,7 +37,7 @@ End-to-end flow:
 
 ## Tests
 
-- **Unit**: `lib/result`, `lib/createGeneratedAudioTrack`, `schemas/songSchema`, `schemas/generateAudioSchema`, `services/storageService`, `services/geminiService` (mocked), `hooks/useUndoRedo` (jsdom)
+- **Unit**: `lib/result`, `lib/createGeneratedAudioTrack`, `lib/songMutations`, `schemas/songSchema`, `schemas/generateAudioSchema`, `services/storageService`, `services/geminiService` (mocked), `hooks/useUndoRedo` (jsdom)
 - **Integration**: `api/generate-audio` (mocked Replicate), `services/textToAudioService` (mocked fetch)
 - **Vitest** with `environment: 'jsdom'` for DOM/localStorage-dependent tests
 - Run: `npm run test`

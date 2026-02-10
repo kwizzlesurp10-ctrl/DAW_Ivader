@@ -31,6 +31,9 @@ function jsonResponse(
 }
 
 export default async function handler(request: Request): Promise<Response> {
+  if (request == null || typeof request !== 'object' || typeof (request as Request).method !== 'string') {
+    return jsonResponse({ error: 'Invalid request' }, 500);
+  }
   try {
     return await handleRequest(request);
   } catch (err) {
