@@ -7,6 +7,7 @@ import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './serv
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { isErr } from './lib/result';
 import { SongData, Track, PlayState } from './types';
+import { MUSICGEN_MODEL_VERSIONS, type MusicGenModelVersion, MUSICGEN_MODEL_VERSION_DEFAULT } from './schemas/generateAudioSchema';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
@@ -76,6 +77,7 @@ const App: React.FC = () => {
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<MusicGenModelVersion>(MUSICGEN_MODEL_VERSION_DEFAULT);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -125,8 +127,7 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    // Use stereo-melody-large model for premium stereo output with melody support
-    const result = await generateAudioFromText(prompt, 8, 'stereo-melody-large');
+    const result = await generateAudioFromText(prompt, 8, selectedModel);
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
@@ -471,10 +472,23 @@ const App: React.FC = () => {
                     type="text" 
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM') — Premium stereo model with melody support"
+                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM')"
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
+                <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value as MusicGenModelVersion)}
+                    disabled={isGenerating}
+                    className="bg-black/50 border border-gray-800 text-[#39ff14] font-mono text-sm px-3 py-2 focus:border-[#39ff14] focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="MusicGen model version: large (mono) or premium stereo/melody variants"
+                >
+                    {MUSICGEN_MODEL_VERSIONS.map(model => (
+                        <option key={model} value={model}>
+                            {model === 'large' ? 'large (mono)' : model === 'stereo-large' ? 'stereo-large ⭐' : model === 'melody-large' ? 'melody-large ⭐' : 'stereo-melody-large ⭐'}
+                        </option>
+                    ))}
+                </select>
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
