@@ -80,6 +80,59 @@ describe('storageService', () => {
       expect(isErr(result)).toBe(true);
       if (isErr(result)) expect(result.error.message).toContain('No saved song');
     });
+
+    it('returns err when stored value is corrupted JSON', () => {
+      store[STORAGE_KEY] = '{ invalid json {{{';
+      const result = loadSong();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Load failed');
+    });
+
+    it('returns err when getItem throws an Error', () => {
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        getItem: () => { throw new Error('SecurityError'); },
+      });
+      const result = loadSong();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Load failed: SecurityError');
+    });
+
+    it('returns err when getItem throws a non-Error', () => {
+      // Tests the defensive `e instanceof Error ? e.message : String(e)` false-branch:
+      // JS allows `throw 'string'` and the source code handles this gracefully.
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        getItem: () => { throw 'access denied'; },
+      });
+      const result = loadSong();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Load failed');
+    });
+  });
+
+  describe('saveSong catch path', () => {
+    it('returns err when setItem throws an Error', () => {
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        setItem: () => { throw new Error('QuotaExceededError'); },
+      });
+      const result = saveSong(validSong);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Save failed: QuotaExceededError');
+    });
+
+    it('returns err when setItem throws a non-Error', () => {
+      // Tests the defensive `e instanceof Error ? e.message : String(e)` false-branch:
+      // JS allows `throw 'string'` and the source code handles this gracefully.
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        setItem: () => { throw 'disk full'; },
+      });
+      const result = saveSong(validSong);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Save failed');
+    });
   });
 
   describe('exportSongToJson', () => {
@@ -130,6 +183,16 @@ describe('storageService', () => {
         JSON.stringify({ title: 'X', bpm: 0, stepsPerPattern: 16, swing: 0, tracks: validSong.tracks })
       );
       expect(isErr(result)).toBe(true);
+    });
+
+    it('returns err when JSON.parse throws a non-Error value', () => {
+      // Tests the defensive `e instanceof Error ? e.message : String(e)` false-branch:
+      // JS allows `throw 'string'` and the source code handles this gracefully.
+      const spy = vi.spyOn(JSON, 'parse').mockImplementationOnce(() => { throw 'not an error object'; });
+      const result = importSongFromJson('{}');
+      spy.mockRestore();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Import failed: not an error object');
     });
   });
 });

@@ -51,8 +51,16 @@ describe('geminiService', () => {
   });
 
   afterEach(() => {
-    process.env.GEMINI_API_KEY = origEnv.GEMINI_API_KEY;
-    process.env.API_KEY = origEnv.API_KEY;
+    if (origEnv.GEMINI_API_KEY !== undefined) {
+      process.env.GEMINI_API_KEY = origEnv.GEMINI_API_KEY;
+    } else {
+      delete process.env.GEMINI_API_KEY;
+    }
+    if (origEnv.API_KEY !== undefined) {
+      process.env.API_KEY = origEnv.API_KEY;
+    } else {
+      delete process.env.API_KEY;
+    }
   });
 
   it('returns err when API key is missing', async () => {
@@ -63,6 +71,23 @@ describe('geminiService', () => {
     if (isErr(result)) {
       expect(result.error.message).toContain('GEMINI_API_KEY');
     }
+  });
+
+  it('uses API_KEY as fallback when GEMINI_API_KEY is not set', async () => {
+    delete process.env.GEMINI_API_KEY;
+    process.env.API_KEY = 'fallback-key';
+    mockGenerateContent.mockResolvedValue({ text: JSON.stringify(validSongRaw) });
+
+    const result = await generateSong('test');
+    expect(isOk(result)).toBe(true);
+  });
+
+  it('returns err when both GEMINI_API_KEY and API_KEY are absent', async () => {
+    delete process.env.GEMINI_API_KEY;
+    delete process.env.API_KEY;
+    const result = await generateSong('test');
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) expect(result.error.message).toContain('GEMINI_API_KEY');
   });
 
   it('returns ok(SongData) when API returns valid JSON', async () => {
@@ -107,7 +132,7 @@ describe('geminiService', () => {
     }
   });
 
-  it('returns err when API returns no text', async () => {
+  it('returns err when API returns no text (null)', async () => {
     process.env.GEMINI_API_KEY = 'test-key';
     mockGenerateContent.mockResolvedValue({ text: null });
 
@@ -115,6 +140,43 @@ describe('geminiService', () => {
     expect(isErr(result)).toBe(true);
     if (isErr(result)) {
       expect(result.error.message).toContain('No data returned');
+    }
+  });
+
+  it('returns err when API returns a non-string text value', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    mockGenerateContent.mockResolvedValue({ text: 42 });
+
+    const result = await generateSong('test');
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.message).toContain('No data returned');
+    }
+  });
+
+  it('returns err when API throws an Error', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    mockGenerateContent.mockRejectedValue(new Error('Network failure'));
+
+    const result = await generateSong('test');
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.message).toContain('Gemini API error');
+      expect(result.error.message).toContain('Network failure');
+    }
+  });
+
+  it('returns err when API throws a non-Error value', async () => {
+    // Tests the defensive `error instanceof Error ? error.message : String(error)` false-branch.
+    // JS allows `throw 'string'` and the source code handles this gracefully.
+    process.env.GEMINI_API_KEY = 'test-key';
+    mockGenerateContent.mockRejectedValue('plain string error');
+
+    const result = await generateSong('test');
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.message).toContain('Gemini API error');
+      expect(result.error.message).toContain('plain string error');
     }
   });
 });
