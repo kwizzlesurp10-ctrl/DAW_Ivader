@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Volume2, Music } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
 import { generateAudioFromText } from './services/textToAudioService';
+import { type MusicGenModelVersion } from './schemas/generateAudioSchema';
 import { createGeneratedAudioTrack } from './lib/createGeneratedAudioTrack';
 import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './services/storageService';
 import { useUndoRedo } from './hooks/useUndoRedo';
@@ -85,6 +86,7 @@ const App: React.FC = () => {
   const [prompt, setPrompt] = useState('');
   const [modelVersion, setModelVersion] = useState<MusicGenModelVersion>('stereo-melody-large');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedModelVersion, setSelectedModelVersion] = useState<MusicGenModelVersion>('stereo-melody-large');
   const [selectedTrackId, setSelectedTrackId] = useState<string>(INITIAL_SONG.tracks[0].id);
   const [initialized, setInitialized] = useState(false);
   const [masterVolume, setMasterVolume] = useState(() => audioEngine.getMasterVolume());
@@ -598,6 +600,18 @@ const App: React.FC = () => {
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
+                <select
+                    value={selectedModelVersion}
+                    onChange={(e) => setSelectedModelVersion(e.target.value as MusicGenModelVersion)}
+                    disabled={isGenerating}
+                    aria-label="Model version"
+                    className="bg-black border border-gray-800 text-[#39ff14] font-mono text-xs px-2 py-1 focus:border-[#39ff14] focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <option value="large">large</option>
+                    <option value="stereo-large">stereo-large ★</option>
+                    <option value="melody-large">melody-large ★</option>
+                    <option value="stereo-melody-large">stereo-melody-large ★</option>
+                </select>
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
