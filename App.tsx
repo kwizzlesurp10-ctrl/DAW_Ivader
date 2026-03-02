@@ -2,10 +2,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Volume2, Music } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
 import { generateAudioFromText } from './services/textToAudioService';
+import { type MusicGenModelVersion } from './schemas/generateAudioSchema';
 import { createGeneratedAudioTrack } from './lib/createGeneratedAudioTrack';
 import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './services/storageService';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { isErr } from './lib/result';
+import { MUSICGEN_MODEL_VERSIONS, type MusicGenModelVersion } from './schemas/generateAudioSchema';
 import { SongData, Track, PlayState } from './types';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
@@ -24,6 +26,14 @@ function nextLoopId(): string {
 /** Default steps per pattern and swing for new songs. */
 const DEFAULT_STEPS_PER_PATTERN = 16 as const;
 const DEFAULT_SWING = 0;
+
+/** Short display labels for each MusicGen model version. */
+const MODEL_LABELS: Record<MusicGenModelVersion, string> = {
+  'large': 'STD',
+  'stereo-large': 'STEREO',
+  'melody-large': 'MELODY',
+  'stereo-melody-large': 'PREMIUM',
+};
 
 // Default initial state
 const INITIAL_SONG: SongData = {
@@ -74,7 +84,9 @@ const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(-1);
   const [selectedStep, setSelectedStep] = useState<number>(0);
   const [prompt, setPrompt] = useState('');
+  const [modelVersion, setModelVersion] = useState<MusicGenModelVersion>('stereo-melody-large');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedModelVersion, setSelectedModelVersion] = useState<MusicGenModelVersion>('stereo-melody-large');
   const [selectedTrackId, setSelectedTrackId] = useState<string>(INITIAL_SONG.tracks[0].id);
   const [initialized, setInitialized] = useState(false);
   const [masterVolume, setMasterVolume] = useState(() => audioEngine.getMasterVolume());
@@ -147,8 +159,8 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    // Use stereo-melody-large model for premium stereo output with melody support
-    const result = await generateAudioFromText(prompt, 8, 'stereo-melody-large');
+    // Use selected model version for premium stereo output with melody support
+    const result = await generateAudioFromText(prompt, 8, modelVersion);
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
@@ -556,9 +568,26 @@ const App: React.FC = () => {
                 <label className="text-[10px] text-[#39ff14] font-bold tracking-widest flex items-center gap-2">
                     <Cpu size={12} /> /// COMMAND_INPUT
                 </label>
-                <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-[#ff0055] rounded-full animate-pulse"></div>
-                    <div className="w-2 h-2 bg-[#39ff14] rounded-full"></div>
+                <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-gray-600 uppercase tracking-wider">MODEL:</span>
+                    {MUSICGEN_MODEL_VERSIONS.map((v) => (
+                        <button
+                            key={v}
+                            onClick={() => setModelVersion(v)}
+                            className={`text-[9px] px-1.5 py-0.5 border uppercase tracking-wider transition-colors ${
+                                modelVersion === v
+                                    ? 'border-[#b026ff] bg-[#b026ff] text-black'
+                                    : 'border-gray-700 text-gray-500 hover:border-[#b026ff] hover:text-[#b026ff]'
+                            }`}
+                            title={v}
+                        >
+                            {MODEL_LABELS[v]}
+                        </button>
+                    ))}
+                    <div className="flex gap-1 ml-1">
+                        <div className="w-2 h-2 bg-[#ff0055] rounded-full animate-pulse"></div>
+                        <div className="w-2 h-2 bg-[#39ff14] rounded-full"></div>
+                    </div>
                 </div>
             </div>
             
@@ -567,10 +596,22 @@ const App: React.FC = () => {
                     type="text" 
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM') — Premium stereo model with melody support"
+                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM')"
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
+                <select
+                    value={selectedModelVersion}
+                    onChange={(e) => setSelectedModelVersion(e.target.value as MusicGenModelVersion)}
+                    disabled={isGenerating}
+                    aria-label="Model version"
+                    className="bg-black border border-gray-800 text-[#39ff14] font-mono text-xs px-2 py-1 focus:border-[#39ff14] focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <option value="large">large</option>
+                    <option value="stereo-large">stereo-large ★</option>
+                    <option value="melody-large">melody-large ★</option>
+                    <option value="stereo-melody-large">stereo-melody-large ★</option>
+                </select>
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
