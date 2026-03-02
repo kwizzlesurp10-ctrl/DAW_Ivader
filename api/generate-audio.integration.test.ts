@@ -257,5 +257,14 @@ describe('api/generate-audio (communication layer)', () => {
       const data = await res.json();
       expect(data.error).toContain('Server error');
     });
+
+    it('returns 502 with stringified error when non-Error is thrown', async () => {
+      mockRun.mockImplementation(() => { throw 'string error from replicate'; });
+      const res = await post({ prompt: 'test' });
+
+      expect(res.status).toBe(502);
+      const data = await res.json();
+      expect(data.error).toContain('string error from replicate');
+    });
   });
 });

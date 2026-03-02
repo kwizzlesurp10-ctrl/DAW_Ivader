@@ -5,6 +5,7 @@ import {
   trackSchema,
   songDataSchema,
   parseSongResponse,
+  maxStepIndex,
 } from './songSchema';
 import { isOk, isErr } from '../lib/result';
 
@@ -131,6 +132,43 @@ describe('songSchema', () => {
     it('returns err for empty tracks', () => {
       const result = parseSongResponse({ title: 'X', bpm: 120, tracks: [] });
       expect(isErr(result)).toBe(true);
+    });
+
+    it('defaults params when track has no params', () => {
+      const { params, ...trackWithoutParams } = validTrack;
+      const raw = { title: 'X', bpm: 100, tracks: [trackWithoutParams] };
+      const result = parseSongResponse(raw);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value.tracks[0].params.waveform).toBe('sine');
+        expect(result.value.tracks[0].params.gain).toBe(0.5);
+      }
+    });
+
+    it('uses stepsPerPattern when provided', () => {
+      const raw = { title: 'X', bpm: 100, stepsPerPattern: 32, tracks: [validTrack] };
+      const result = parseSongResponse(raw);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) expect(result.value.stepsPerPattern).toBe(32);
+    });
+
+    it('uses swing when provided', () => {
+      const raw = { title: 'X', bpm: 100, swing: 50, tracks: [validTrack] };
+      const result = parseSongResponse(raw);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) expect(result.value.swing).toBe(50);
+    });
+  });
+
+  describe('maxStepIndex', () => {
+    it('returns 7 for 8 steps', () => {
+      expect(maxStepIndex(8)).toBe(7);
+    });
+    it('returns 15 for 16 steps', () => {
+      expect(maxStepIndex(16)).toBe(15);
+    });
+    it('returns 31 for 32 steps', () => {
+      expect(maxStepIndex(32)).toBe(31);
     });
   });
 });

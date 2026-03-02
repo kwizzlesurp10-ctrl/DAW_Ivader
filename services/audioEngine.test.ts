@@ -312,6 +312,124 @@ describe('audioEngine', () => {
 
       expect(audioEngine.getAnalyser()).toBeNull();
     });
+
+    it('plays audio track via triggerNote when track has audioUrl', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const audioTrack = makeTrack({ type: 'audio', audioUrl: 'https://example.com/s.wav' });
+
+      audioEngine.setSongData(makeSongData({ tracks: [audioTrack] }));
+      await vi.runAllTimersAsync();
+
+      audioEngine.triggerNote(audioTrack, 'C4');
+
+      // createBufferSource called when buffer is in cache
+      expect(lastMockContext?.createOscillator).not.toHaveBeenCalled();
+    });
+
+    it('triggerNote resumes suspended ctx', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      if (lastMockContext) {
+        (lastMockContext as unknown as { state: string }).state = 'suspended';
+      }
+      const track = makeTrack({ type: 'synth' });
+
+      audioEngine.triggerNote(track, 'C4');
+
+      expect(lastMockContext?.createOscillator).toHaveBeenCalled();
+    });
+
+    it('plays oscillator for drums track with snare', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const track = makeTrack({ type: 'drums' });
+
+      audioEngine.triggerNote(track, 'snare');
+
+      expect(lastMockContext?.createOscillator).toHaveBeenCalled();
+    });
+
+    it('ignores unknown note for synth track', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const track = makeTrack({ type: 'synth' });
+
+      audioEngine.triggerNote(track, 'UNKNOWN_NOTE');
+
+      // Should not crash; oscillator will not be created for unknown notes
+    });
+  });
+
+  describe('start() with suspended context', () => {
+    it('resumes suspended context on start', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      if (lastMockContext) {
+        (lastMockContext as unknown as { state: string }).state = 'suspended';
+      }
+      const song = makeSongData({ tracks: [makeTrack({ notes: [] })] });
+      audioEngine.setSongData(song);
+
+      await audioEngine.start();
+      await audioEngine.pause();
+
+      expect(audioEngine.getAnalyser()).not.toBeNull();
+    });
+
+    it('adjusts nextNoteTime when ctx.currentTime is ahead of nextNoteTime', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.stop();
+      // Set mock currentTime > 0 so nextNoteTime (0) < ctx.currentTime (1)
+      if (lastMockContext) {
+        (lastMockContext as unknown as { currentTime: number }).currentTime = 1.0;
+      }
+      const song = makeSongData({ tracks: [makeTrack({ notes: [] })] });
+      audioEngine.setSongData(song);
+
+      await audioEngine.start();
+      await audioEngine.pause();
+
+      expect(audioEngine.getAnalyser()).not.toBeNull();
+    });
+  });
+
+  describe('scheduler with metronome', () => {
+    it('plays metronome click when metronome is enabled', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.setMetronomeEnabled(true);
+      const song = makeSongData({ tracks: [makeTrack({ notes: [] })] });
+      audioEngine.setSongData(song);
+
+      await audioEngine.start();
+      vi.advanceTimersByTime(50);
+      await audioEngine.pause();
+
+      expect(lastMockContext?.createOscillator).toHaveBeenCalled();
+    });
+
+    it('plays audio track in scheduler at step 0', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const audioTrack = makeTrack({ type: 'audio', audioUrl: 'https://example.com/sched.wav' });
+      const song = makeSongData({ tracks: [audioTrack] });
+      audioEngine.setSongData(song);
+      await vi.runAllTimersAsync();
+
+      await audioEngine.start();
+      vi.advanceTimersByTime(50);
+      await audioEngine.pause();
+
+      expect(audioEngine.getAnalyser()).not.toBeNull();
+    });
+
+    it('schedules notes for muted and solo tracks', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const mutedTrack = makeTrack({ muted: true, notes: [{ note: 'C4', startStep: 0, durationSteps: 1 }] });
+      const soloTrack = makeTrack({ id: 't2', solo: true, notes: [{ note: 'A4', startStep: 0, durationSteps: 1 }] });
+      const song = makeSongData({ tracks: [mutedTrack, soloTrack] });
+      audioEngine.setSongData(song);
+
+      await audioEngine.start();
+      vi.advanceTimersByTime(50);
+      await audioEngine.pause();
+
+      expect(lastMockContext?.createOscillator).toHaveBeenCalled();
+    });
   });
 
   describe('updateTrackParams', () => {

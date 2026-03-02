@@ -303,6 +303,15 @@ describe('textToAudioService (communication layer)', () => {
       expect(isErr(result)).toBe(true);
       if (isErr(result)) expect(result.error.message).toBe('Custom error');
     });
+
+    it('returns err when fetch throws a non-Error value', async () => {
+      mockFetch.mockRejectedValue('plain string error');
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toBe('plain string error');
+    });
   });
 
   describe('validation errors (no fetch)', () => {
