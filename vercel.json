@@ -1,10 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "npm run build",
+  "buildCommand": "pnpm run build",
   "outputDirectory": "dist",
   "framework": null,
-  "installCommand": "npm ci",
   "rewrites": [
     { "source": "/((?!@)(?!api/)(?!.*\\.).*)", "destination": "/index.html" }
   ]
