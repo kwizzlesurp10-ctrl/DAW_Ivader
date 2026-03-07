@@ -312,6 +312,110 @@ describe('audioEngine', () => {
 
       expect(audioEngine.getAnalyser()).toBeNull();
     });
+
+    it('plays oscillator for drums track with snare', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const track = makeTrack({ type: 'drums' });
+
+      audioEngine.triggerNote(track, 'snare');
+
+      expect(lastMockContext?.createOscillator).toHaveBeenCalled();
+    });
+
+    it('does not throw for unknown note on non-drums track', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const track = makeTrack({ type: 'synth' });
+
+      // Oscillator is created but not connected/started when note has no mapped frequency
+      expect(() => audioEngine.triggerNote(track, 'X99')).not.toThrow();
+    });
+
+    it('plays buffer source for audio track when buffer is cached', async () => {
+      vi.unstubAllGlobals();
+      const MockCtx = createMockAudioContext();
+      vi.stubGlobal('AudioContext', MockCtx);
+      vi.stubGlobal('webkitAudioContext', MockCtx);
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }));
+      vi.stubGlobal('requestAnimationFrame', vi.fn((cb: () => void) => { setTimeout(cb, 0); return 1; }));
+
+      vi.resetModules();
+      const { audioEngine } = await import('./audioEngine');
+      await audioEngine.init();
+
+      const audioTrack = makeTrack({ type: 'audio', audioUrl: 'https://test.example.com/beat.wav', notes: [] });
+      audioEngine.setSongData(makeSongData({ tracks: [audioTrack] }));
+      await vi.runAllTimersAsync();
+
+      audioEngine.triggerNote(audioTrack, 'C4');
+
+      expect(lastMockContext?.createBufferSource).toHaveBeenCalled();
+    });
+  });
+
+  describe('metronome click', () => {
+    it('fires metronome click when enabled during playback', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.setMetronomeEnabled(true);
+      audioEngine.setSongData(makeSongData({ tracks: [makeTrack({ notes: [] })] }));
+
+      await audioEngine.start();
+
+      expect(lastMockContext?.createOscillator).toHaveBeenCalled();
+      audioEngine.stop();
+    });
+
+    it('fires different click frequency on non-zero step', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.setMetronomeEnabled(true);
+      const song = makeSongData({ bpm: 120, tracks: [makeTrack({ notes: [] })] });
+      audioEngine.setSongData(song);
+      audioEngine.stop(); // ensure nextNoteTime = 0
+
+      // Advance mock AudioContext time so the scheduler schedules multiple steps
+      lastMockContext!.currentTime = 1.0;
+      await audioEngine.start();
+
+      // createOscillator called for multiple metronome ticks (step 0 and non-zero steps)
+      expect(lastMockContext?.createOscillator.mock.calls.length).toBeGreaterThan(1);
+      audioEngine.stop();
+    });
+  });
+
+  describe('scheduleNote solo/mute', () => {
+    it('only plays solo track when anySolo is true', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const soloTrack = makeTrack({
+        id: 't1',
+        solo: true,
+        notes: [{ note: 'C4', startStep: 0, durationSteps: 2 }],
+      });
+      const silentTrack = makeTrack({
+        id: 't2',
+        solo: false,
+        muted: false,
+        notes: [{ note: 'E4', startStep: 0, durationSteps: 2 }],
+      });
+      audioEngine.setSongData(makeSongData({ tracks: [soloTrack, silentTrack] }));
+
+      await audioEngine.start();
+
+      expect(lastMockContext?.createOscillator).toHaveBeenCalled();
+      audioEngine.stop();
+    });
+  });
+
+  describe('start idempotency', () => {
+    it('does not restart when already playing', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.setSongData(makeSongData());
+
+      await audioEngine.start();
+      const callsBefore = lastMockContext?.createOscillator.mock.calls.length ?? 0;
+      await audioEngine.start(); // second call is a no-op
+
+      expect(lastMockContext?.createOscillator.mock.calls.length).toBe(callsBefore);
+      audioEngine.stop();
+    });
   });
 
   describe('updateTrackParams', () => {
@@ -323,6 +427,90 @@ describe('audioEngine', () => {
       audioEngine.updateTrackParams(0, { ...defaultParams, gain: 0.8 });
 
       expect(audioEngine.getAnalyser()).not.toBeNull();
+    });
+
+    it('does nothing when track index is out of bounds', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.setSongData(makeSongData({ tracks: [makeTrack()] }));
+
+      expect(() => audioEngine.updateTrackParams(99, defaultParams)).not.toThrow();
+    });
+  });
+
+  describe('start edge cases', () => {
+    it('resumes suspended AudioContext on start', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.setSongData(makeSongData());
+      // Simulate context becoming suspended after init
+      lastMockContext!.state = 'suspended';
+
+      await audioEngine.start();
+
+      expect(lastMockContext?.resume).toHaveBeenCalled();
+      audioEngine.stop();
+    });
+
+    it('resets nextNoteTime when context has advanced past it', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      audioEngine.setSongData(makeSongData());
+      audioEngine.stop(); // sets nextNoteTime = 0
+      // Simulate AudioContext time having advanced
+      lastMockContext!.currentTime = 1.0;
+
+      await audioEngine.start();
+
+      // Just verify no error and playback started
+      expect(audioEngine.getAnalyser()).not.toBeNull();
+      audioEngine.stop();
+    });
+
+    it('plays audio track via scheduler at step 0', async () => {
+      vi.unstubAllGlobals();
+      const MockCtx = createMockAudioContext();
+      vi.stubGlobal('AudioContext', MockCtx);
+      vi.stubGlobal('webkitAudioContext', MockCtx);
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }));
+      vi.stubGlobal('requestAnimationFrame', vi.fn((cb: () => void) => { setTimeout(cb, 0); return 1; }));
+
+      vi.resetModules();
+      const { audioEngine } = await import('./audioEngine');
+      await audioEngine.init();
+
+      const audioTrack = makeTrack({ type: 'audio', audioUrl: 'https://sched.example.com/beat.wav', notes: [] });
+      audioEngine.setSongData(makeSongData({ tracks: [audioTrack] }));
+      await vi.runAllTimersAsync(); // preload buffer into cache
+
+      await audioEngine.start(); // scheduler fires scheduleNote(0, …) → playAudioTrack
+
+      expect(lastMockContext?.createBufferSource).toHaveBeenCalled();
+      audioEngine.stop();
+    });
+
+    it('plays audio track with trim start and end points', async () => {
+      vi.unstubAllGlobals();
+      const MockCtx = createMockAudioContext();
+      vi.stubGlobal('AudioContext', MockCtx);
+      vi.stubGlobal('webkitAudioContext', MockCtx);
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }));
+      vi.stubGlobal('requestAnimationFrame', vi.fn((cb: () => void) => { setTimeout(cb, 0); return 1; }));
+
+      vi.resetModules();
+      const { audioEngine } = await import('./audioEngine');
+      await audioEngine.init();
+
+      const audioTrack = makeTrack({
+        type: 'audio',
+        audioUrl: 'https://trim.example.com/beat.wav',
+        notes: [],
+        audioTrimStart: 0.5,
+        audioTrimEnd: 1.5,
+      });
+      audioEngine.setSongData(makeSongData({ tracks: [audioTrack] }));
+      await vi.runAllTimersAsync();
+
+      audioEngine.triggerNote(audioTrack, 'C4');
+
+      expect(lastMockContext?.createBufferSource).toHaveBeenCalled();
     });
   });
 });

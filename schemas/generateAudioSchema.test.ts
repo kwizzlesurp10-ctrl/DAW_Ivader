@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   parseGenerateAudioRequest,
   generateAudioRequestSchema,
@@ -228,6 +228,29 @@ describe('generateAudioSchema', () => {
     it('returns error for non-object input (number)', () => {
       const result = parseGenerateAudioRequest(42);
       expect(result.ok).toBe(false);
+    });
+
+    it('falls back to err.message when issues produce empty messages', () => {
+      // Simulate a Zod-like error where issues produce an empty joined string
+      const spy = vi.spyOn(generateAudioRequestSchema, 'safeParse').mockReturnValueOnce({
+        success: false,
+        error: { issues: [{ message: '' }], message: 'fallback error message' } as never,
+      });
+      const result = parseGenerateAudioRequest({ prompt: 'test' });
+      spy.mockRestore();
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe('fallback error message');
+    });
+
+    it('falls back to hardcoded Invalid request when issues and message are empty', () => {
+      const spy = vi.spyOn(generateAudioRequestSchema, 'safeParse').mockReturnValueOnce({
+        success: false,
+        error: { issues: [{ message: '' }], message: '' } as never,
+      });
+      const result = parseGenerateAudioRequest({ prompt: 'test' });
+      spy.mockRestore();
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBe('Invalid request');
     });
   });
 
