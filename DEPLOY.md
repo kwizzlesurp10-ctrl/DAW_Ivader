@@ -15,7 +15,7 @@ In Vercel Dashboard → Project → Settings → Environment Variables:
 
 | Name | Value |
 |------|-------|
-| `GEMINI_API_KEY` | Your API key from [Google AI Studio](https://aistudio.google.com/apikey) |
+| `OPEN_ROUTER_API_KEY` | Your API key from [OpenRouter](https://openrouter.ai/keys) (for AI song structure, optional) |
 | `HUGGINGFACE_API_TOKEN` | **Recommended.** Token for Generate (text-to-audio) from [HuggingFace](https://huggingface.co/settings/tokens). Uses Meta MusicGen models via HuggingFace Inference API. |
 | `REPLICATE_API_TOKEN` | **Fallback.** Token from [Replicate](https://replicate.com/account/api-tokens). Used only when `HUGGINGFACE_API_TOKEN` is not set. |
 

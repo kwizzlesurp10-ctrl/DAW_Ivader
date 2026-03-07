@@ -18,8 +18,8 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [react()],
     define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      'process.env.API_KEY': JSON.stringify(env.OPEN_ROUTER_API_KEY),
+      'process.env.OPEN_ROUTER_API_KEY': JSON.stringify(env.OPEN_ROUTER_API_KEY),
     },
     resolve: {
       alias: {
@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
     test: {
       globals: true,
       environment: 'jsdom',
-      include: ['**/*.test.ts', '**/*.test.tsx'],
+      include: ['**/*.test.ts', '**/*.test.tsx', 'e2e/**/*.e2e.test.ts'],
       coverage: {
         provider: 'v8',
         reporter: ['text', 'json-summary'],

@@ -479,7 +479,7 @@ const App: React.FC = () => {
   if (!initialized) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden z-10 p-4">
-        <div className="cyber-panel p-8 md:p-12 text-center max-w-2xl w-full relative overflow-hidden group cursor-pointer" onClick={handleInit}>
+        <div className="cyber-panel p-8 md:p-12 text-center max-w-2xl w-full relative overflow-hidden group cursor-pointer" onClick={handleInit} data-testid="splash-panel">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           <div className="absolute bottom-0 right-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           
@@ -493,7 +493,7 @@ const App: React.FC = () => {
           
           <div className="relative inline-block">
              <div className="absolute inset-0 bg-[#39ff14] blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-             <button className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] px-10 py-4 uppercase tracking-widest text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left">
+             <button type="button" className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] px-10 py-4 uppercase tracking-widest text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left" data-testid="init-button">
                 [ Initialize System ]
              </button>
           </div>
@@ -530,6 +530,7 @@ const App: React.FC = () => {
                     placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM')"
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                    data-testid="generate-prompt-input"
                 />
                 <button 
                     onClick={handleGenerate}

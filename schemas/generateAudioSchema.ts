@@ -1,21 +1,23 @@
 import { z } from 'zod';
 
-/** Valid duration range for MusicGen (seconds). */
-export const GENERATE_AUDIO_DURATION_MIN = 1;
-export const GENERATE_AUDIO_DURATION_MAX = 30;
-export const GENERATE_AUDIO_DURATION_DEFAULT = 8;
+/** Valid duration range for MusicGen (seconds). Limited to 10–15s for faster generation and lower timeouts. */
+export const GENERATE_AUDIO_DURATION_MIN = 10;
+export const GENERATE_AUDIO_DURATION_MAX = 15;
+export const GENERATE_AUDIO_DURATION_DEFAULT = 12;
 
 /** Max prompt length to prevent abuse. */
 export const GENERATE_AUDIO_PROMPT_MAX_LENGTH = 2000;
 
 /**
- * Available MusicGen model versions on Replicate.
+ * Available MusicGen model versions.
+ * - small: 300M parameters, faster (HuggingFace Inference API only)
  * - large: 3.3B parameters, mono output (default)
  * - stereo-large: 3.3B parameters, stereo output (premium)
  * - melody-large: 3.3B parameters, supports melody conditioning (premium)
  * - stereo-melody-large: 3.3B parameters, stereo + melody conditioning (premium)
  */
 export const MUSICGEN_MODEL_VERSIONS = [
+  'small',
   'large',
   'stereo-large',
   'melody-large',
