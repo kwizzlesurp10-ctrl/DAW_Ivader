@@ -117,4 +117,28 @@ describe('geminiService', () => {
       expect(result.error.message).toContain('No data returned');
     }
   });
+
+  it('returns err when API call throws an Error', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    mockGenerateContent.mockRejectedValue(new Error('Network failure'));
+
+    const result = await generateSong('test');
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.message).toContain('Gemini API error');
+      expect(result.error.message).toContain('Network failure');
+    }
+  });
+
+  it('returns err when API call throws a non-Error value', async () => {
+    process.env.GEMINI_API_KEY = 'test-key';
+    mockGenerateContent.mockRejectedValue('string error');
+
+    const result = await generateSong('test');
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error.message).toContain('Gemini API error');
+      expect(result.error.message).toContain('string error');
+    }
+  });
 });

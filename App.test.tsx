@@ -80,7 +80,7 @@ describe('MusicGen feature – end-to-end', () => {
         fireEvent.click(generateBtn);
       });
 
-      expect(generateAudioFromText).toHaveBeenCalledWith('dark cyberpunk bassline', 8);
+      expect(generateAudioFromText).toHaveBeenCalledWith('dark cyberpunk bassline', 8, 'stereo-melody-large');
     });
 
     it('generated audio URL is used in the new DAW track (track appears in sequencer)', async () => {
@@ -137,7 +137,7 @@ describe('MusicGen feature – end-to-end', () => {
         fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
       });
 
-      expect(generateAudioFromText).toHaveBeenCalledWith('synthwave lead', 8);
+      expect(generateAudioFromText).toHaveBeenCalledWith('synthwave lead', 8, 'stereo-melody-large');
     });
 
     it('does not call generateAudioFromText when prompt is empty', async () => {

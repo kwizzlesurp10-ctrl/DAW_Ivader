@@ -3,5 +3,10 @@
   "outputDirectory": "dist",
   "framework": null,
   "installCommand": "npm ci",
+  "functions": {
+    "api/generate-audio.ts": {
+      "maxDuration": 120
+    }
+  },
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

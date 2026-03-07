@@ -4,6 +4,7 @@ import {
   generateAudioResponseSchema,
   type GenerateAudioRequest,
   type GenerateAudioSuccess,
+  type MusicGenModelVersion,
   GENERATE_AUDIO_DURATION_DEFAULT,
 } from '../schemas/generateAudioSchema';
 
@@ -19,15 +20,18 @@ const FETCH_TIMEOUT_MS = 90_000;
  *
  * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
  * @param durationSeconds - Clip length 1–30 seconds. Default 8.
+ * @param modelVersion - MusicGen model variant. Default 'large'.
  * @returns Result with { url } on success, or Error on failure.
  */
 export async function generateAudioFromText(
   prompt: string,
-  durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT
+  durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT,
+  modelVersion?: MusicGenModelVersion
 ): Promise<Result<GenerateAudioResult, Error>> {
   const parseResult = generateAudioRequestSchema.safeParse({
     prompt: prompt.trim(),
     duration: durationSeconds,
+    ...(modelVersion !== undefined ? { model_version: modelVersion } : {}),
   });
   if (!parseResult.success) {
     const e = parseResult.error as { message?: string; issues?: Array<{ message?: string }> };
@@ -37,7 +41,7 @@ export async function generateAudioFromText(
       'Invalid prompt';
     return err(new Error(msg));
   }
-  const { prompt: trimmed, duration } = parseResult.data;
+  const { prompt: trimmed, duration, model_version } = parseResult.data;
 
   const apiBase =
     typeof window !== 'undefined'
@@ -48,7 +52,7 @@ export async function generateAudioFromText(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const body: GenerateAudioRequest = { prompt: trimmed, duration };
+    const body: GenerateAudioRequest = { prompt: trimmed, duration, model_version };
     const res = await fetch(`${apiBase}/api/generate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

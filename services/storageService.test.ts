@@ -80,6 +80,53 @@ describe('storageService', () => {
       expect(isErr(result)).toBe(true);
       if (isErr(result)) expect(result.error.message).toContain('No saved song');
     });
+
+    it('returns err when stored JSON is invalid', () => {
+      store[STORAGE_KEY] = 'not valid json {{{';
+      const result = loadSong();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Load failed');
+    });
+
+    it('returns err when localStorage.getItem throws', () => {
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        getItem: () => { throw new Error('QuotaExceededError'); },
+      });
+      const result = loadSong();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Load failed');
+    });
+
+    it('returns err when localStorage.getItem throws a non-Error', () => {
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        getItem: () => { throw 'storage unavailable'; },
+      });
+      const result = loadSong();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Load failed');
+    });
+
+    it('returns err when localStorage.setItem throws', () => {
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        setItem: () => { throw new Error('QuotaExceededError'); },
+      });
+      const result = saveSong(validSong);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Save failed');
+    });
+
+    it('returns err when localStorage.setItem throws a non-Error', () => {
+      vi.stubGlobal('localStorage', {
+        ...mockLocalStorage,
+        setItem: () => { throw 'quota exceeded'; },
+      });
+      const result = saveSong(validSong);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Save failed');
+    });
   });
 
   describe('exportSongToJson', () => {

@@ -56,7 +56,7 @@ describe('textToAudioService (communication layer)', () => {
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'dark bass', duration: 8 }),
+          body: JSON.stringify({ prompt: 'dark bass', duration: 8, model_version: 'large' }),
         })
       );
     });
@@ -74,7 +74,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8 }),
+          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'large' }),
         })
       );
     });
@@ -92,7 +92,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 15 }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'large' }),
         })
       );
     });
@@ -266,6 +266,15 @@ describe('textToAudioService (communication layer)', () => {
 
       expect(isErr(result)).toBe(true);
       if (isErr(result)) expect(result.error.message).toBe('Custom error');
+    });
+
+    it('returns err when fetch throws a non-Error value', async () => {
+      mockFetch.mockRejectedValue('plain string error');
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toBe('plain string error');
     });
   });
 
