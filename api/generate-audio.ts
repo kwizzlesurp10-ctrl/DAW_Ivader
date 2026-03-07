@@ -1,16 +1,34 @@
 import Replicate from 'replicate';
-import { parseGenerateAudioRequest } from '../schemas/generateAudioSchema';
+import { parseGenerateAudioRequest, type MusicGenModelVersion } from '../schemas/generateAudioSchema';
 
 /** Meta MusicGen model on Replicate. */
-const MUSICGEN_MODEL =
+const MUSICGEN_REPLICATE_MODEL =
   'meta/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38';
+
+/**
+ * HuggingFace Inference API model IDs for each MusicGen variant.
+ * See: https://huggingface.co/facebook
+ */
+const HUGGINGFACE_MODEL_MAP: Record<MusicGenModelVersion, string> = {
+  'large': 'facebook/musicgen-large',
+  'stereo-large': 'facebook/musicgen-stereo-large',
+  'melody-large': 'facebook/musicgen-melody-large',
+  'stereo-melody-large': 'facebook/musicgen-stereo-melody-large',
+};
+
+/** MusicGen generates ~50 audio tokens per second of output. */
+const MUSICGEN_TOKENS_PER_SECOND = 50;
 
 /**
  * Vercel serverless: POST /api/generate-audio
  * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
  * Returns: { url: string } | { error: string }
- * Uses Meta MusicGen via Replicate. Set REPLICATE_API_TOKEN in Vercel env.
- * Supports premium models: stereo-large, melody-large, stereo-melody-large.
+ *
+ * Backend selection (first match wins):
+ *   1. HUGGINGFACE_API_TOKEN — Meta MusicGen via HuggingFace Inference API (returns data URL)
+ *   2. REPLICATE_API_TOKEN   — Meta MusicGen via Replicate
+ *
+ * Set at least one token in Vercel: Project → Settings → Environment Variables.
  */
 export const config = { maxDuration: 120 };
 
@@ -28,6 +46,61 @@ function jsonResponse(
     status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
+}
+
+/**
+ * Generate audio using the HuggingFace Inference API.
+ * Returns { url } with a base64 data URL on success, or { error } on failure.
+ */
+export async function generateWithHuggingFace(
+  token: string,
+  prompt: string,
+  duration: number,
+  modelVersion: MusicGenModelVersion
+): Promise<{ url: string } | { error: string }> {
+  const model = HUGGINGFACE_MODEL_MAP[modelVersion];
+  const maxNewTokens = duration * MUSICGEN_TOKENS_PER_SECOND;
+
+  let res: Response;
+  try {
+    res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        'X-Wait-For-Model': 'true',
+      },
+      body: JSON.stringify({
+        inputs: prompt,
+        parameters: { max_new_tokens: maxNewTokens },
+      }),
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { error: `HuggingFace request failed: ${message}` };
+  }
+
+  if (!res.ok) {
+    let text = '';
+    try { text = await res.text(); } catch { /* ignore */ }
+    return {
+      error: `HuggingFace API error ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`,
+    };
+  }
+
+  let buffer: ArrayBuffer;
+  try {
+    buffer = await res.arrayBuffer();
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { error: `Failed to read HuggingFace response: ${message}` };
+  }
+
+  const base64 = Buffer.from(buffer).toString('base64');
+  const contentType = res.headers.get('content-type') || 'audio/wav';
+  const url = `data:${contentType};base64,${base64}`;
+
+  return { url };
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -48,12 +121,14 @@ async function handleRequest(request: Request): Promise<Response> {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const token = process.env.REPLICATE_API_TOKEN;
-  if (!token?.trim()) {
+  const hfToken = process.env.HUGGINGFACE_API_TOKEN?.trim();
+  const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
+
+  if (!hfToken && !replicateToken) {
     return jsonResponse(
       {
         error:
-          'REPLICATE_API_TOKEN is not set. Add it in Vercel: Project → Settings → Environment Variables, then redeploy.',
+          'No audio backend configured. Set HUGGINGFACE_API_TOKEN (recommended) or REPLICATE_API_TOKEN in Vercel: Project → Settings → Environment Variables, then redeploy.',
       },
       503
     );
@@ -72,10 +147,20 @@ async function handleRequest(request: Request): Promise<Response> {
   }
   const { prompt, duration, model_version } = parseResult.data;
 
+  // HuggingFace backend (preferred when token is available)
+  if (hfToken) {
+    const result = await generateWithHuggingFace(hfToken, prompt, duration, model_version);
+    if ('error' in result) {
+      return jsonResponse({ error: `Generation failed: ${result.error}` }, 502);
+    }
+    return jsonResponse({ url: result.url }, 200);
+  }
+
+  // Replicate backend (fallback)
   let output: unknown;
   try {
-    const replicate = new Replicate({ auth: token });
-    output = await replicate.run(MUSICGEN_MODEL, {
+    const replicate = new Replicate({ auth: replicateToken! });
+    output = await replicate.run(MUSICGEN_REPLICATE_MODEL, {
       input: { prompt, duration, model_version },
     });
   } catch (err) {
