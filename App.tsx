@@ -7,6 +7,14 @@ import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './serv
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { isErr } from './lib/result';
 import { SongData, Track, PlayState } from './types';
+import {
+  MUSICGEN_MODEL_VERSIONS,
+  type MusicGenModelVersion,
+  MUSICGEN_MODEL_VERSION_DEFAULT,
+  GENERATE_AUDIO_DURATION_DEFAULT,
+  GENERATE_AUDIO_DURATION_MIN,
+  GENERATE_AUDIO_DURATION_MAX,
+} from './schemas/generateAudioSchema';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
@@ -90,6 +98,8 @@ const App: React.FC = () => {
     }
   });
   const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
+  const [modelVersion, setModelVersion] = useState<MusicGenModelVersion>(MUSICGEN_MODEL_VERSION_DEFAULT);
+  const [generationDuration, setGenerationDuration] = useState<number>(GENERATE_AUDIO_DURATION_DEFAULT);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -147,8 +157,7 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    // Use stereo-melody-large model for premium stereo output with melody support
-    const result = await generateAudioFromText(prompt, 8, 'stereo-melody-large');
+    const result = await generateAudioFromText(prompt, generationDuration, modelVersion);
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
@@ -160,7 +169,7 @@ const App: React.FC = () => {
       id: nextLoopId(),
       name: `Loop ${loops.length + 1}`,
       url: result.value.url,
-      duration: 8,
+      duration: generationDuration,
       prompt: prompt.trim(),
       createdAt: Date.now(),
     };
@@ -567,7 +576,7 @@ const App: React.FC = () => {
                     type="text" 
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM') — Premium stereo model with melody support"
+                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM')"
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                 />
@@ -579,6 +588,42 @@ const App: React.FC = () => {
                     {isGenerating ? <Activity className="animate-spin" /> : <Wand2 size={18} />}
                     {isGenerating ? "PROCESSING..." : "GENERATE"}
                 </button>
+            </div>
+
+            {/* Audio backend configuration controls */}
+            <div className="flex items-center gap-4 px-2 pb-2 flex-wrap">
+                <div className="flex items-center gap-2">
+                    <label className="text-[9px] text-gray-500 tracking-widest uppercase flex items-center gap-1">
+                        <Sliders size={10} /> MODEL
+                    </label>
+                    <select
+                        value={modelVersion}
+                        onChange={(e) => setModelVersion(e.target.value as MusicGenModelVersion)}
+                        disabled={isGenerating}
+                        className="bg-black border border-gray-700 text-[#b026ff] text-[10px] font-mono px-2 py-1 focus:border-[#b026ff] focus:outline-none disabled:opacity-50 cursor-pointer"
+                        aria-label="MusicGen model version"
+                    >
+                        {MUSICGEN_MODEL_VERSIONS.map((v) => (
+                            <option key={v} value={v}>{v}</option>
+                        ))}
+                    </select>
+                </div>
+                <div className="flex items-center gap-2">
+                    <label className="text-[9px] text-gray-500 tracking-widest uppercase">
+                        DUR
+                    </label>
+                    <input
+                        type="range"
+                        min={GENERATE_AUDIO_DURATION_MIN}
+                        max={GENERATE_AUDIO_DURATION_MAX}
+                        value={generationDuration}
+                        onChange={(e) => setGenerationDuration(Number(e.target.value))}
+                        disabled={isGenerating}
+                        className="w-20 h-1 accent-[#b026ff] disabled:opacity-50"
+                        aria-label="Generation duration in seconds"
+                    />
+                    <span className="text-[10px] text-[#b026ff] font-mono w-6 text-right">{generationDuration}s</span>
+                </div>
             </div>
         </div>
         
