@@ -1,4 +1,4 @@
-import Replicate from 'replicate';
+import { Buffer } from 'buffer';
 import { parseGenerateAudioRequest, type MusicGenModelVersion } from '../schemas/generateAudioSchema';
 
 /** Meta MusicGen model on Replicate. */
@@ -159,6 +159,7 @@ async function handleRequest(request: Request): Promise<Response> {
   // Replicate backend (fallback)
   let output: unknown;
   try {
+    const { default: Replicate } = await import('replicate');
     const replicate = new Replicate({ auth: replicateToken! });
     output = await replicate.run(MUSICGEN_REPLICATE_MODEL, {
       input: { prompt, duration, model_version },
