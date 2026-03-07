@@ -21,6 +21,8 @@ In Vercel Dashboard → Project → Settings → Environment Variables:
 
 Set at least one of `HUGGINGFACE_API_TOKEN` or `REPLICATE_API_TOKEN` to enable audio generation. Redeploy after adding env vars so the build uses them.
 
+> **Vercel plan requirement:** The `/api/generate-audio` function has `maxDuration: 120` seconds to support premium MusicGen models (`stereo-large`, `melody-large`, `stereo-melody-large`). This requires a **Vercel Pro** plan. The Hobby plan limits functions to 60 seconds; if deploying on Hobby, reduce `maxDuration` to `60` in both `api/generate-audio.ts` and `vercel.json`, and use only the standard `large` model.
+
 **Do not set in production (Vercel or any prod env):** `VITE_AUDIO_MOCK`, `VITE_SIMULATE_AUDIO`. These are dev-only; if set in production the app will throw at runtime. Leave them unset for deployment.
 
 ## Custom Domain
