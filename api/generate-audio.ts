@@ -68,13 +68,13 @@ async function handleRequest(request: Request): Promise<Response> {
   if (!parseResult.ok) {
     return jsonResponse({ error: parseResult.error }, 400);
   }
-  const { prompt, duration } = parseResult.data;
+  const { prompt, duration, model_version } = parseResult.data;
 
   let output: unknown;
   try {
     const replicate = new Replicate({ auth: token });
     output = await replicate.run(MUSICGEN_MODEL, {
-      input: { prompt, duration },
+      input: { prompt, duration, model_version },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

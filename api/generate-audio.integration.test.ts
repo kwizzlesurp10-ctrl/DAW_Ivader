@@ -163,6 +163,32 @@ describe('api/generate-audio (communication layer)', () => {
       );
     });
 
+    it('forwards default model_version (large) to Replicate when omitted', async () => {
+      mockRun.mockResolvedValue('https://x.com/a.wav');
+
+      await post({ prompt: 'test' });
+
+      expect(mockRun).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          input: expect.objectContaining({ model_version: 'large' }),
+        })
+      );
+    });
+
+    it('forwards premium model_version (stereo-melody-large) to Replicate', async () => {
+      mockRun.mockResolvedValue('https://x.com/a.wav');
+
+      await post({ prompt: 'test', model_version: 'stereo-melody-large' });
+
+      expect(mockRun).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          input: expect.objectContaining({ model_version: 'stereo-melody-large' }),
+        })
+      );
+    });
+
     it('clamps duration below 1 to 1', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
 
@@ -256,6 +282,15 @@ describe('api/generate-audio (communication layer)', () => {
       expect(res.status).toBe(500);
       const data = await res.json();
       expect(data.error).toContain('Server error');
+    });
+
+    it('returns 502 with stringified error when non-Error is thrown', async () => {
+      mockRun.mockImplementation(() => { throw 'string error from replicate'; });
+      const res = await post({ prompt: 'test' });
+
+      expect(res.status).toBe(502);
+      const data = await res.json();
+      expect(data.error).toContain('string error from replicate');
     });
   });
 });
