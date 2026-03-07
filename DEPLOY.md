@@ -1,6 +1,6 @@
 # Deploy DOOM DAW to Vercel
 
-**Deployment uses real audio only:** the audio engine and generate-audio API use the real Web Audio API and Replicate (MusicGen). No mock or simulation modes are used in production; they are disabled for deployment.
+**Deployment uses real audio only:** the audio engine and generate-audio API use the real Web Audio API and HuggingFace or Replicate (MusicGen). No mock or simulation modes are used in production; they are disabled for deployment.
 
 ## Quick Deploy
 
@@ -16,9 +16,10 @@ In Vercel Dashboard → Project → Settings → Environment Variables:
 | Name | Value |
 |------|-------|
 | `GEMINI_API_KEY` | Your API key from [Google AI Studio](https://aistudio.google.com/apikey) |
-| `REPLICATE_API_TOKEN` | Your token for Generate (text-to-audio); optional if you don’t use Generate |
+| `HUGGINGFACE_API_TOKEN` | **Recommended.** Token for Generate (text-to-audio) from [HuggingFace](https://huggingface.co/settings/tokens). Uses Meta MusicGen models via HuggingFace Inference API. |
+| `REPLICATE_API_TOKEN` | **Fallback.** Token from [Replicate](https://replicate.com/account/api-tokens). Used only when `HUGGINGFACE_API_TOKEN` is not set. |
 
-Redeploy after adding env vars so the build uses them.
+Set at least one of `HUGGINGFACE_API_TOKEN` or `REPLICATE_API_TOKEN` to enable audio generation. Redeploy after adding env vars so the build uses them.
 
 **Do not set in production (Vercel or any prod env):** `VITE_AUDIO_MOCK`, `VITE_SIMULATE_AUDIO`. These are dev-only; if set in production the app will throw at runtime. Leave them unset for deployment.
 

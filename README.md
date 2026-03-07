@@ -32,7 +32,8 @@ npm ci
 
 # 2. Environment (required for Generate / text-to-audio)
 cp .env.example .env.local
-# Edit .env.local: set REPLICATE_API_TOKEN=your_token
+# Edit .env.local: set HUGGINGFACE_API_TOKEN=your_token  (recommended)
+# — OR — set REPLICATE_API_TOKEN=your_token  (fallback)
 # (Optional: GEMINI_API_KEY for other features)
 
 # 3. Verify
@@ -59,35 +60,52 @@ npx vercel login
 npx vercel --prod
 ```
 
-Set **`REPLICATE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
+Set **`HUGGINGFACE_API_TOKEN`** (recommended) or **`REPLICATE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
 
 ---
 
-## Generate audio setup (Replicate)
+## Generate audio setup
 
-The **Generate** button uses Meta MusicGen via Replicate. To enable it:
+The **Generate** button uses Meta MusicGen via **HuggingFace** (recommended) or **Replicate** (fallback). The backend is selected automatically based on which token is configured — HuggingFace takes priority when both are set.
+
+### Option A: HuggingFace Inference API (recommended)
+
+1. **Get a HuggingFace token**  
+   Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), sign in, and create a token with Inference API access.
+
+2. **Local**  
+   In `.env.local` add:
+   ```bash
+   HUGGINGFACE_API_TOKEN=your_token
+   ```
+
+3. **Vercel (production)**  
+   In the Vercel project: **Settings → Environment Variables** add **`HUGGINGFACE_API_TOKEN`** with your token, then redeploy.
+
+### Option B: Replicate (fallback)
+
+Used only when `HUGGINGFACE_API_TOKEN` is **not** set.
 
 1. **Get a Replicate token**  
    Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens), sign in, and create an API token.
 
+2. **Local** — In `.env.local` add:
+   ```bash
+   REPLICATE_API_TOKEN=your_token
+   ```
+   Generate only works when the API route is reachable:
+   - **Option A:** Run with **`vercel dev`** (Vercel CLI)
+   - **Option B:** Deploy to Vercel and use the deployed URL
 
-2. **Local**
-   - In project root create or edit `.env.local` and add:
-     ```bash
-     REPLICATE_API_TOKEN=your_token
-     ```
-   - Generate only works when the API is reachable:
-     - **Option A:** Run the app (and the `/api` route) with **`vercel dev`** (Vercel CLI), then use the URL it prints.
-     - **Option B:** Deploy to Vercel and use the deployed URL (see below).
-
-3. **Vercel (production)**
-   - In the Vercel project: **Settings → Environment Variables** add **`REPLICATE_API_TOKEN`** with your token.
-   - **Redeploy** (e.g. `npx vercel --prod` or push to the connected repo) so the serverless function uses the new variable.
+3. **Vercel (production)**  
+   In the Vercel project: **Settings → Environment Variables** add **`REPLICATE_API_TOKEN`** with your token, then redeploy.
 
 ---
 
 ## Run locally (dev)
 
 1. **Install:** `npm install`
-2. **Env:** Set `REPLICATE_API_TOKEN` in `.env.local` (or `.env`) for Generate. Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens).
+2. **Env:** Set `HUGGINGFACE_API_TOKEN` (recommended) or `REPLICATE_API_TOKEN` in `.env.local` for Generate.
+   - HuggingFace: Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+   - Replicate: Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
 3. **Run:** For Generate to work locally, use **`vercel dev`** (not only `npm run dev`). Otherwise use the deployed app.
