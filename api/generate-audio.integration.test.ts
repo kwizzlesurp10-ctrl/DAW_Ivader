@@ -149,12 +149,12 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ prompt: 'test', duration: 8 }),
+          input: expect.objectContaining({ prompt: 'test', duration: 12 }),
         })
       );
     });
 
-    it('clamps duration above 30 to 30', async () => {
+    it('clamps duration above max to max', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
 
       await post({ prompt: 'test', duration: 100 });
@@ -162,12 +162,12 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ duration: 30 }),
+          input: expect.objectContaining({ duration: 15 }),
         })
       );
     });
 
-    it('clamps duration below 1 to 1', async () => {
+    it('clamps duration below min to min', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
 
       await post({ prompt: 'test', duration: 0 });
@@ -175,7 +175,7 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ duration: 1 }),
+          input: expect.objectContaining({ duration: 10 }),
         })
       );
     });
@@ -254,12 +254,12 @@ describe('api/generate-audio (communication layer)', () => {
   });
 
   describe('handler outer catch', () => {
-    it('returns 500 when request causes handleRequest to throw', async () => {
+    it('returns 500 with Invalid request when request is null', async () => {
       const res = await handler(null as unknown as Request);
 
       expect(res.status).toBe(500);
       const data = await res.json();
-      expect(data.error).toContain('Server error');
+      expect(data.error).toBe('Invalid request');
     });
   });
 });
@@ -327,6 +327,7 @@ describe('api/generate-audio — HuggingFace backend', () => {
       vi.stubGlobal('fetch', fetchMock);
 
       const variants = [
+        ['small', 'facebook/musicgen-small'],
         ['large', 'facebook/musicgen-large'],
         ['stereo-large', 'facebook/musicgen-stereo-large'],
         ['melody-large', 'facebook/musicgen-melody-large'],

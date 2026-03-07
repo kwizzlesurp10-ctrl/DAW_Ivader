@@ -12,15 +12,15 @@ import {
 /** Client-side result type for successful generation. */
 export type GenerateAudioResult = GenerateAudioSuccess;
 
-/** Timeout (ms) — matches API maxDuration. */
-const FETCH_TIMEOUT_MS = 90_000;
+/** Timeout (ms) — must be >= API maxDuration (300s). MusicGen can take 2–5 min with cold start. */
+const FETCH_TIMEOUT_MS = 300_000;
 
 /**
  * Call the app's serverless API to generate audio from text (MusicGen).
  * In production the API runs on the same origin; in dev use Vercel dev or full URL.
  *
  * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
- * @param durationSeconds - Clip length 1–30 seconds. Default 8.
+ * @param durationSeconds - Clip length 10–15 seconds. Default 12.
  * @param modelVersion - MusicGen model to use: 'large' (default), 'stereo-large', 'melody-large', or 'stereo-melody-large'.
  * @returns Result with { url } on success, or Error on failure.
  */
@@ -80,7 +80,7 @@ export async function generateAudioFromText(
       if (res.status === 404) {
         return err(
           new Error(
-            'Generate API not found. Run the app with "vercel dev" (not npm run dev) so /api/generate-audio is available.'
+            'Generate API not found. Run with "npm run dev:full" or "vercel dev" so /api/generate-audio is available (plain "npm run dev" does not serve the API).'
           )
         );
       }

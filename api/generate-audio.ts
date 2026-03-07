@@ -10,6 +10,7 @@ const MUSICGEN_REPLICATE_MODEL =
  * See: https://huggingface.co/facebook
  */
 const HUGGINGFACE_MODEL_MAP: Record<MusicGenModelVersion, string> = {
+  'small': 'facebook/musicgen-small',
   'large': 'facebook/musicgen-large',
   'stereo-large': 'facebook/musicgen-stereo-large',
   'melody-large': 'facebook/musicgen-melody-large',
@@ -30,7 +31,7 @@ const MUSICGEN_TOKENS_PER_SECOND = 50;
  *
  * Set at least one token in Vercel: Project → Settings → Environment Variables.
  */
-export const config = { maxDuration: 120 };
+export const config = { maxDuration: 300 };
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -104,6 +105,9 @@ export async function generateWithHuggingFace(
 }
 
 export default async function handler(request: Request): Promise<Response> {
+  if (request == null || typeof request !== 'object' || typeof (request as Request).method !== 'string') {
+    return jsonResponse({ error: 'Invalid request' }, 500);
+  }
   try {
     return await handleRequest(request);
   } catch (err) {

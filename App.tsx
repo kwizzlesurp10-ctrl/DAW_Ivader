@@ -1,11 +1,29 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Volume2, Music } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Music } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
 import { generateAudioFromText } from './services/textToAudioService';
 import { createGeneratedAudioTrack } from './lib/createGeneratedAudioTrack';
 import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './services/storageService';
 import { useUndoRedo } from './hooks/useUndoRedo';
 import { isErr } from './lib/result';
+import {
+  addTrack as addTrackMutation,
+  removeTrack as removeTrackMutation,
+  duplicateTrack as duplicateTrackMutation,
+  moveTrack as moveTrackMutation,
+  setTrackMuted as setTrackMutedMutation,
+  setTrackSolo as setTrackSoloMutation,
+  setTrackVolume as setTrackVolumeMutation,
+  setTrackPan as setTrackPanMutation,
+  updateTrackParam as updateTrackParamMutation,
+  setTrackWaveform as setTrackWaveformMutation,
+  toggleStep as toggleStepMutation,
+  setBpm as setBpmMutation,
+  setStepsPerPattern as setStepsPerPatternMutation,
+  setSwing as setSwingMutation,
+  appendTrack as appendTrackMutation,
+  createEmptySynthTrack,
+} from './lib/songMutations';
 import { SongData, Track, PlayState } from './types';
 import {
   MUSICGEN_MODEL_VERSIONS,
@@ -164,7 +182,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Create a new loop and add it to the library
     const newLoop: MusicLoop = {
       id: nextLoopId(),
       name: `Loop ${loops.length + 1}`,
@@ -237,7 +254,7 @@ const App: React.FC = () => {
     } catch (err) {
       console.error('Failed to handle loop drop:', err);
     }
-    
+
     setDraggedLoop(null);
   };
 
@@ -247,132 +264,66 @@ const App: React.FC = () => {
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
-    const trackIndex = song.tracks.findIndex(t => t.id === trackId);
-    if (trackIndex === -1) return;
-
-    const newTracks = [...song.tracks];
-    newTracks[trackIndex].params = {
-      ...newTracks[trackIndex].params,
-      [param]: value
-    };
-
-    setSong(prev => ({ ...prev, tracks: newTracks }));
-    audioEngine.updateTrackParams(trackIndex, newTracks[trackIndex].params);
+    const next = updateTrackParamMutation(song, trackId, param, value);
+    if (!next) return;
+    setSong(() => next);
+    const trackIndex = song.tracks.findIndex((t) => t.id === trackId);
+    if (trackIndex !== -1) audioEngine.updateTrackParams(trackIndex, next.tracks[trackIndex].params);
   };
 
   const handleStepToggle = (trackId: string, step: number) => {
-    const trackIndex = song.tracks.findIndex(t => t.id === trackId);
-    if (trackIndex === -1) return;
-    const track = song.tracks[trackIndex];
-    const hasNoteAtStep = track.notes.some(
-      n => step >= n.startStep && step < n.startStep + n.durationSteps
-    );
-    const newTracks = [...song.tracks];
-    if (hasNoteAtStep) {
-      newTracks[trackIndex] = {
-        ...track,
-        notes: track.notes.filter(
-          n => !(step >= n.startStep && step < n.startStep + n.durationSteps)
-        ),
-      };
-    } else {
-      const defaultNote =
-        track.type === 'drums'
-          ? { note: 'kick', startStep: step, durationSteps: 1 }
-          : track.type === 'bass'
-            ? { note: 'C2', startStep: step, durationSteps: 4 }
-            : { note: 'C4', startStep: step, durationSteps: 2 };
-      newTracks[trackIndex] = {
-        ...track,
-        notes: [...track.notes, defaultNote].sort((a, b) => a.startStep - b.startStep),
-      };
-    }
-    setSong(prev => ({ ...prev, tracks: newTracks }));
+    const next = toggleStepMutation(song, trackId, step);
+    if (next) setSong(() => next);
   };
 
   const setTrackMuted = (trackId: string, muted: boolean) => {
-    const i = song.tracks.findIndex(t => t.id === trackId);
-    if (i === -1) return;
-    const newTracks = [...song.tracks];
-    newTracks[i] = { ...newTracks[i], muted };
-    setSong(prev => ({ ...prev, tracks: newTracks }));
+    const next = setTrackMutedMutation(song, trackId, muted);
+    if (next) setSong(() => next);
   };
 
   const setTrackSolo = (trackId: string, solo: boolean) => {
-    const i = song.tracks.findIndex(t => t.id === trackId);
-    if (i === -1) return;
-    const newTracks = [...song.tracks];
-    newTracks[i] = { ...newTracks[i], solo };
-    setSong(prev => ({ ...prev, tracks: newTracks }));
+    const next = setTrackSoloMutation(song, trackId, solo);
+    if (next) setSong(() => next);
   };
 
   const setTrackVolume = (trackId: string, volume: number) => {
-    const i = song.tracks.findIndex(t => t.id === trackId);
-    if (i === -1) return;
-    const newTracks = [...song.tracks];
-    newTracks[i] = { ...newTracks[i], volume: Math.max(0, Math.min(2, volume)) };
-    setSong(prev => ({ ...prev, tracks: newTracks }));
+    const next = setTrackVolumeMutation(song, trackId, volume);
+    if (next) setSong(() => next);
   };
 
   const setTrackPan = (trackId: string, pan: number) => {
-    const i = song.tracks.findIndex(t => t.id === trackId);
-    if (i === -1) return;
-    const newTracks = [...song.tracks];
-    newTracks[i] = { ...newTracks[i], pan: Math.max(-1, Math.min(1, pan)) };
-    setSong(prev => ({ ...prev, tracks: newTracks }));
+    const next = setTrackPanMutation(song, trackId, pan);
+    if (next) setSong(() => next);
   };
 
   const setBpm = (bpm: number) => {
-    const clamped = Math.max(1, Math.min(999, Math.round(bpm)));
-    setSong(prev => ({ ...prev, bpm: clamped }));
+    setSong((prev) => setBpmMutation(prev, bpm));
   };
 
   const addTrack = () => {
-    const newTrack: Track = {
-      id: nextTrackId(),
-      name: 'NEW',
-      type: 'synth',
-      notes: [],
-      params: { waveform: 'sine', attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 1000, filterRes: 1, gain: 0.5 },
-      muted: false,
-      solo: false,
-      volume: 1,
-      pan: 0,
-    };
-    setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }));
+    const newTrack = createEmptySynthTrack(nextTrackId(), 'NEW');
+    setSong((prev) => addTrackMutation(prev, newTrack));
     setSelectedTrackId(newTrack.id);
   };
 
   const removeTrack = (trackId: string) => {
-    const i = song.tracks.findIndex(t => t.id === trackId);
-    if (i === -1 || song.tracks.length <= 1) return;
-    const next = song.tracks.filter(t => t.id !== trackId);
-    setSong(prev => ({ ...prev, tracks: next }));
-    if (selectedTrackId === trackId) {
-      setSelectedTrackId(next[0].id);
-    }
+    const next = removeTrackMutation(song, trackId);
+    if (!next) return;
+    setSong(() => next);
+    if (selectedTrackId === trackId) setSelectedTrackId(next.tracks[0].id);
   };
 
   const duplicateTrack = (trackId: string) => {
-    const track = song.tracks.find(t => t.id === trackId);
-    if (!track) return;
-    const newTrack: Track = { ...track, id: nextTrackId(), name: track.name + ' COPY' };
-    const i = song.tracks.findIndex(t => t.id === trackId);
-    const newTracks = [...song.tracks];
-    newTracks.splice(i + 1, 0, newTrack);
-    setSong(prev => ({ ...prev, tracks: newTracks }));
-    setSelectedTrackId(newTrack.id);
+    const newId = nextTrackId();
+    const next = duplicateTrackMutation(song, trackId, newId, ' COPY');
+    if (!next) return;
+    setSong(() => next);
+    setSelectedTrackId(newId);
   };
 
   const moveTrack = (trackId: string, direction: 'up' | 'down') => {
-    const i = song.tracks.findIndex(t => t.id === trackId);
-    if (i === -1) return;
-    if (direction === 'up' && i === 0) return;
-    if (direction === 'down' && i === song.tracks.length - 1) return;
-    const newTracks = [...song.tracks];
-    const j = direction === 'up' ? i - 1 : i + 1;
-    [newTracks[i], newTracks[j]] = [newTracks[j], newTracks[i]];
-    setSong(prev => ({ ...prev, tracks: newTracks }));
+    const next = moveTrackMutation(song, trackId, direction);
+    if (next) setSong(() => next);
   };
 
   const handleDragStart = (e: React.DragEvent, trackId: string) => {
@@ -528,7 +479,7 @@ const App: React.FC = () => {
   if (!initialized) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden z-10 p-4">
-        <div className="cyber-panel p-8 md:p-12 text-center max-w-2xl w-full relative overflow-hidden group cursor-pointer" onClick={handleInit}>
+        <div className="cyber-panel p-8 md:p-12 text-center max-w-2xl w-full relative overflow-hidden group cursor-pointer" onClick={handleInit} data-testid="splash-panel">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           <div className="absolute bottom-0 right-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           
@@ -542,7 +493,7 @@ const App: React.FC = () => {
           
           <div className="relative inline-block">
              <div className="absolute inset-0 bg-[#39ff14] blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-             <button className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] px-10 py-4 uppercase tracking-widest text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left">
+             <button type="button" className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] px-10 py-4 uppercase tracking-widest text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left" data-testid="init-button">
                 [ Initialize System ]
              </button>
           </div>
@@ -579,6 +530,7 @@ const App: React.FC = () => {
                     placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM')"
                     className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                     onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                    data-testid="generate-prompt-input"
                 />
                 <button 
                     onClick={handleGenerate}
@@ -723,12 +675,12 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-1">
                             <span className="text-[10px] text-gray-500">STEPS:</span>
                             {([8, 16, 32] as const).map((n) => (
-                                <button key={n} onClick={() => setSong(prev => ({ ...prev, stepsPerPattern: n }))} className={`px-2 py-0.5 text-[10px] border ${song.stepsPerPattern === n ? 'border-[#39ff14] bg-[#39ff14] text-black' : 'border-gray-600 text-gray-400 hover:border-gray-500'}`}>{n}</button>
+                                <button key={n} onClick={() => setSong((prev) => setStepsPerPatternMutation(prev, n))} className={`px-2 py-0.5 text-[10px] border ${song.stepsPerPattern === n ? 'border-[#39ff14] bg-[#39ff14] text-black' : 'border-gray-600 text-gray-400 hover:border-gray-500'}`}>{n}</button>
                             ))}
                         </div>
                         <div className="flex items-center gap-1">
                             <span className="text-[10px] text-gray-500">SWING:</span>
-                            <input type="range" min={0} max={100} value={song.swing} onChange={(e) => setSong(prev => ({ ...prev, swing: Number(e.target.value) }))} className="w-16 h-1.5 accent-[#b026ff]" aria-label="Swing amount" />
+                            <input type="range" min={0} max={100} value={song.swing} onChange={(e) => setSong((prev) => setSwingMutation(prev, Number(e.target.value)))} className="w-16 h-1.5 accent-[#b026ff]" aria-label="Swing amount" />
                             <span className="text-[9px] text-gray-500 w-6">{song.swing}%</span>
                         </div>
                         <button onClick={addTrack} className="flex items-center gap-1 px-2 py-1 text-[10px] border border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black" title="Add track"><Plus size={10} /> ADD</button>
@@ -873,16 +825,11 @@ const App: React.FC = () => {
                                      <button
                                         key={type}
                                         onClick={() => {
-                                            const newTracks = [...song.tracks];
-                                            const tIdx = newTracks.findIndex(t => t.id === selectedTrack.id);
-                                            if (tIdx === -1) return;
-                                            const w = type as Track['params']['waveform'];
-                                            newTracks[tIdx] = {
-                                              ...newTracks[tIdx],
-                                              params: { ...newTracks[tIdx].params, waveform: w }
-                                            };
-                                            setSong({ ...song, tracks: newTracks });
-                                            audioEngine.updateTrackParams(tIdx, newTracks[tIdx].params);
+                                            const next = setTrackWaveformMutation(song, selectedTrack.id, type as Track['params']['waveform']);
+                                            if (!next) return;
+                                            setSong(() => next);
+                                            const tIdx = next.tracks.findIndex((t) => t.id === selectedTrack.id);
+                                            if (tIdx !== -1) audioEngine.updateTrackParams(tIdx, next.tracks[tIdx].params);
                                         }}
                                         className={`
                                             py-2 text-[10px] uppercase font-bold border transition-all duration-200
