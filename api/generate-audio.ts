@@ -64,6 +64,12 @@ function extractReplicateUrl(value: unknown): string | null {
 }
 
 /**
+ * Result from a backend audio-generation attempt.
+ * Either a base64/remote URL on success, or an error message on failure.
+ */
+type GenerationResult = { url: string } | { error: string };
+
+/**
  * Vercel serverless: POST /api/generate-audio
  * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
  * Returns: { url: string } | { error: string }
@@ -105,16 +111,23 @@ export async function generateWithHuggingFace(
   duration: number,
   modelVersion: MusicGenModelVersion,
   signal?: AbortSignal
-): Promise<{ url: string } | { error: string }> {
+): Promise<GenerationResult> {
   const model = HUGGINGFACE_MODEL_MAP[modelVersion];
   const maxNewTokens = duration * MUSICGEN_TOKENS_PER_SECOND;
 
   // Apply a hard timeout so the function always returns before Vercel kills it
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), HF_REQUEST_TIMEOUT_MS);
-  const combinedSignal = signal
-    ? anyAbortSignal([signal, timeoutController.signal])
-    : timeoutController.signal;
+  // Guard: signal may not fully implement AbortSignal in some runtimes (e.g. older Vercel Node.js builds).
+  // Fall back to the timeout-only signal rather than throwing.
+  let combinedSignal: AbortSignal;
+  try {
+    combinedSignal = signal
+      ? anyAbortSignal([signal, timeoutController.signal])
+      : timeoutController.signal;
+  } catch {
+    combinedSignal = timeoutController.signal;
+  }
 
   let res: Response;
   try {
@@ -170,7 +183,13 @@ export async function generateWithHuggingFace(
     return { error: `Failed to read HuggingFace response: ${message}` };
   }
 
-  const base64 = Buffer.from(buffer).toString('base64');
+  let base64: string;
+  try {
+    base64 = Buffer.from(buffer).toString('base64');
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { error: `Failed to encode audio response: ${message}` };
+  }
   const contentType = res.headers.get('content-type') || 'audio/wav';
   const url = `data:${contentType};base64,${base64}`;
 
@@ -226,7 +245,13 @@ async function handleRequest(request: Request): Promise<Response> {
 
   // HuggingFace backend (preferred when token is available)
   if (hfToken) {
-    const result = await generateWithHuggingFace(hfToken, prompt, duration, model_version, request.signal);
+    let result: GenerationResult;
+    try {
+      result = await generateWithHuggingFace(hfToken, prompt, duration, model_version, request.signal);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return jsonResponse({ error: `Generation failed: ${message}` }, 502);
+    }
     if ('error' in result) {
       return jsonResponse({ error: `Generation failed: ${result.error}` }, 502);
     }
