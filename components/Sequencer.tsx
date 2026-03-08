@@ -75,7 +75,7 @@ export const Sequencer: React.FC<SequencerProps> = ({
            const active = isStepActive(step);
            const isCurrent = currentStep === step;
            const isSelected = selectedStep === step;
-           const isCancelMark = currentStep === -1 && cancelStep !== undefined && cancelStep >= 0 && cancelStep === step;
+           const isCancelMark = currentStep === -1 && cancelStep !== undefined && cancelStep === step;
            
            // Step Visual Logic
            let baseClasses = "flex-1 min-w-[12px] h-full rounded-[1px] transition-all duration-75 relative group border-t border-b";

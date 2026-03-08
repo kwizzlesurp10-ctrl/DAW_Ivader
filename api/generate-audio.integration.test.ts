@@ -204,8 +204,10 @@ describe('api/generate-audio (communication layer)', () => {
       expect(data.url).toBe('https://replicate.delivery/abc.wav');
     });
 
-    it('returns 200 when Replicate returns object with url key', async () => {
-      mockRun.mockResolvedValue({ url: 'https://cdn.example.com/out.wav' });
+    it('returns 200 when Replicate returns FileOutput (toString returns URL)', async () => {
+      // Replicate v1.x wraps URLs in FileOutput objects; toString() returns the URL string
+      const mockFileOutput = { toString: () => 'https://cdn.example.com/out.wav' };
+      mockRun.mockResolvedValue(mockFileOutput);
 
       const res = await post({ prompt: 'test' });
 
@@ -269,7 +271,8 @@ describe('api/generate-audio — HuggingFace backend', () => {
     token: string,
     prompt: string,
     duration: number,
-    modelVersion: import('../schemas/generateAudioSchema').MusicGenModelVersion
+    modelVersion: import('../schemas/generateAudioSchema').MusicGenModelVersion,
+    signal?: AbortSignal
   ) => Promise<{ url: string } | { error: string }>;
   let handler: (req: Request) => Promise<Response>;
 
@@ -369,14 +372,37 @@ describe('api/generate-audio — HuggingFace backend', () => {
       expect(body.parameters.max_new_tokens).toBe(500); // 10s * 50 tokens/s
     });
 
-    it('returns error when HuggingFace returns non-OK status', async () => {
-      mockFetchError(503, 'Model loading');
+    it('returns error with model-loading message when HuggingFace returns 503', async () => {
+      mockFetchError(503, JSON.stringify({ error: 'Model is currently loading', estimated_time: 30.5 }));
 
       const result = await generateWithHuggingFace('tok', 'test', 8, 'large');
 
       expect('error' in result).toBe(true);
       if ('error' in result) {
-        expect(result.error).toContain('503');
+        expect(result.error).toContain('loading');
+        expect(result.error).toContain('31s'); // Math.ceil(30.5)
+      }
+    });
+
+    it('returns error with retry message when HuggingFace returns 503 without JSON', async () => {
+      mockFetchError(503, 'Service overloaded');
+
+      const result = await generateWithHuggingFace('tok', 'test', 8, 'large');
+
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toContain('loading');
+      }
+    });
+
+    it('returns error on AbortError (timeout)', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })));
+
+      const result = await generateWithHuggingFace('tok', 'test', 8, 'large');
+
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toContain('timed out');
       }
     });
 
