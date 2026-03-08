@@ -98,6 +98,7 @@ const App: React.FC = () => {
   const { state: song, setState: setSong, undo, redo, canUndo, canRedo } = useUndoRedo<SongData>(INITIAL_SONG);
   const [playState, setPlayState] = useState<PlayState>(PlayState.STOPPED);
   const [currentStep, setCurrentStep] = useState<number>(-1);
+  const [cancelStep, setCancelStep] = useState<number>(0);
   const [selectedStep, setSelectedStep] = useState<number>(0);
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -167,13 +168,17 @@ const App: React.FC = () => {
     if (!initialized) return;
     audioEngine.stop();
     setPlayState(PlayState.STOPPED);
-    setCurrentStep(-1);
+    // Update cancel mark to the position saved by the engine (or 0 after double-stop)
+    setCancelStep(audioEngine.getCancelStep());
+    // currentStep is updated via onStepCallback; no manual override needed
   };
 
   const handleGenerate = async (): Promise<void> => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
     handleStop();
+    audioEngine.resetToStart();
+    setCancelStep(0);
 
     const result = await generateAudioFromText(prompt, generationDuration, modelVersion);
     if (isErr(result)) {
@@ -399,6 +404,8 @@ const App: React.FC = () => {
 
   const handleLoad = () => {
     handleStop();
+    audioEngine.resetToStart();
+    setCancelStep(0);
     const result = loadSong();
     if (isErr(result)) alert(result.error.message);
     else setSong(result.value);
@@ -427,6 +434,8 @@ const App: React.FC = () => {
         if (isErr(result)) alert(result.error.message);
         else {
           handleStop();
+          audioEngine.resetToStart();
+          setCancelStep(0);
           setSong(result.value);
         }
       };
@@ -720,6 +729,7 @@ const App: React.FC = () => {
                                         stepsPerPattern={song.stepsPerPattern}
                                         currentStep={currentStep}
                                         selectedStep={selectedStep}
+                                        cancelStep={cancelStep}
                                         onStepSelect={(step) => setSelectedStep(step)}
                                         onStepToggle={(step) => handleStepToggle(track.id, step)}
                                     />

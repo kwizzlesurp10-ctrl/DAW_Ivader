@@ -21,6 +21,28 @@ const HUGGINGFACE_MODEL_MAP: Record<MusicGenModelVersion, string> = {
 const MUSICGEN_TOKENS_PER_SECOND = 50;
 
 /**
+ * Timeout for the HuggingFace API request.
+ * Must be less than maxDuration (300s) so we can return a proper error
+ * rather than letting Vercel kill the function (FUNCTION_INVOCATION_FAILED).
+ */
+const HF_REQUEST_TIMEOUT_MS = 250_000;
+
+/**
+ * Extract a plain URL string from a Replicate output value.
+ * Replicate v1.x wraps audio URLs in FileOutput objects; older versions
+ * return plain strings. Both are handled here.
+ */
+function extractReplicateUrl(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    // FileOutput.toString() returns the URL string directly
+    const str = String(value);
+    if (str.startsWith('http') || str.startsWith('data:')) return str;
+  }
+  return null;
+}
+
+/**
  * Vercel serverless: POST /api/generate-audio
  * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
  * Returns: { url: string } | { error: string }
@@ -52,15 +74,26 @@ function jsonResponse(
 /**
  * Generate audio using the HuggingFace Inference API.
  * Returns { url } with a base64 data URL on success, or { error } on failure.
+ *
+ * @param signal - Optional AbortSignal; a HF_REQUEST_TIMEOUT_MS deadline is
+ *   always added so the Vercel function never hangs past maxDuration.
  */
 export async function generateWithHuggingFace(
   token: string,
   prompt: string,
   duration: number,
-  modelVersion: MusicGenModelVersion
+  modelVersion: MusicGenModelVersion,
+  signal?: AbortSignal
 ): Promise<{ url: string } | { error: string }> {
   const model = HUGGINGFACE_MODEL_MAP[modelVersion];
   const maxNewTokens = duration * MUSICGEN_TOKENS_PER_SECOND;
+
+  // Apply a hard timeout so the function always returns before Vercel kills it
+  const timeoutController = new AbortController();
+  const timeoutId = setTimeout(() => timeoutController.abort(), HF_REQUEST_TIMEOUT_MS);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
 
   let res: Response;
   try {
@@ -75,15 +108,34 @@ export async function generateWithHuggingFace(
         inputs: prompt,
         parameters: { max_new_tokens: maxNewTokens },
       }),
+      signal: combinedSignal,
     });
   } catch (e) {
+    clearTimeout(timeoutId);
+    const name = (e as Error)?.name;
     const message = e instanceof Error ? e.message : String(e);
+    if (name === 'AbortError') {
+      return { error: 'HuggingFace request timed out. The model may be loading — try again in a minute.' };
+    }
     return { error: `HuggingFace request failed: ${message}` };
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!res.ok) {
     let text = '';
     try { text = await res.text(); } catch { /* ignore */ }
+    // 503 = model is loading; give the user a helpful retry message
+    if (res.status === 503) {
+      let estimated = '';
+      try {
+        const body = JSON.parse(text) as { estimated_time?: number };
+        if (typeof body.estimated_time === 'number') {
+          estimated = ` (estimated wait: ${Math.ceil(body.estimated_time)}s)`;
+        }
+      } catch { /* ignore */ }
+      return { error: `HuggingFace model is loading${estimated} — wait a moment and try again.` };
+    }
     return {
       error: `HuggingFace API error ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`,
     };
@@ -153,7 +205,7 @@ async function handleRequest(request: Request): Promise<Response> {
 
   // HuggingFace backend (preferred when token is available)
   if (hfToken) {
-    const result = await generateWithHuggingFace(hfToken, prompt, duration, model_version);
+    const result = await generateWithHuggingFace(hfToken, prompt, duration, model_version, request.signal);
     if ('error' in result) {
       return jsonResponse({ error: `Generation failed: ${result.error}` }, 502);
     }
@@ -166,21 +218,22 @@ async function handleRequest(request: Request): Promise<Response> {
     const replicate = new Replicate({ auth: replicateToken! });
     output = await replicate.run(MUSICGEN_REPLICATE_MODEL, {
       input: { prompt, duration, model_version },
+      signal: request.signal,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
   }
 
-  const url =
-    typeof output === 'string'
-      ? output
-      : Array.isArray(output)
-        ? output[0]
-        : (output as { url?: string })?.url;
-  if (!url || typeof url !== 'string') {
+  // Replicate v1.x wraps audio URLs in FileOutput objects (toString() = URL).
+  // Earlier versions return plain strings. Handle both.
+  const rawUrl = Array.isArray(output)
+    ? extractReplicateUrl(output[0])
+    : extractReplicateUrl(output);
+
+  if (!rawUrl) {
     return jsonResponse({ error: 'Model did not return an audio URL' }, 502);
   }
 
-  return jsonResponse({ url }, 200);
+  return jsonResponse({ url: rawUrl }, 200);
 }
