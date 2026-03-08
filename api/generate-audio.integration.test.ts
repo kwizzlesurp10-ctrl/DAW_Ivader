@@ -439,6 +439,46 @@ describe('api/generate-audio — HuggingFace backend', () => {
         expect(result.error).toContain('timed out');
       }
     });
+
+    it('falls back to timeout signal when caller signal lacks addEventListener', async () => {
+      // Simulate a non-standard/partial AbortSignal (e.g. from an older Vercel Node.js build)
+      // that is truthy but does not implement addEventListener.
+      const incompleteSignal = { aborted: false } as AbortSignal;
+
+      const fakeWav = new Uint8Array([82, 73, 70, 70]);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(fakeWav, { status: 200, headers: { 'Content-Type': 'audio/wav' } })
+        )
+      );
+
+      // Must not throw — should return { url } successfully using the timeout-only signal
+      const result = await generateWithHuggingFace('tok', 'test', 8, 'large', incompleteSignal);
+
+      expect('url' in result).toBe(true);
+    });
+
+    it('returns error (does not throw) when Buffer encoding fails', async () => {
+      const fakeWav = new Uint8Array([82, 73, 70, 70]);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          new Response(fakeWav, { status: 200, headers: { 'Content-Type': 'audio/wav' } })
+        )
+      );
+
+      vi.spyOn(Buffer, 'from').mockImplementationOnce(() => {
+        throw new Error('Buffer encoding failed');
+      });
+
+      const result = await generateWithHuggingFace('tok', 'test', 8, 'large');
+
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toContain('encode audio');
+      }
+    });
   });
 
   describe('handler with HuggingFace backend', () => {
@@ -498,6 +538,28 @@ describe('api/generate-audio — HuggingFace backend', () => {
         })
       );
 
+      expect(res.status).toBe(502);
+      const data = await res.json() as { error: string };
+      expect(data.error).toContain('Generation failed');
+    });
+
+    it('returns 502 (not 500) when generateWithHuggingFace throws unexpectedly', async () => {
+      // Create request before stubbing AbortController so the Request constructor is unaffected
+      const req = new Request('https://example.com/api/generate-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: 'test' }),
+      });
+
+      // Stub AbortController so that the internal `new AbortController()` in
+      // generateWithHuggingFace throws — simulating an unexpected runtime error.
+      vi.stubGlobal('AbortController', class {
+        constructor() { throw new Error('Unexpected runtime error'); }
+      });
+
+      const res = await handler(req);
+
+      // Must return 502 (backend error), NOT 500 (server crash)
       expect(res.status).toBe(502);
       const data = await res.json() as { error: string };
       expect(data.error).toContain('Generation failed');
