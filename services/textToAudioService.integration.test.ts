@@ -235,6 +235,44 @@ describe('textToAudioService (communication layer)', () => {
       if (isErr(result)) expect(result.error.message).toContain('500');
     });
 
+    it('returns user-friendly message when Vercel returns FUNCTION_INVOCATION_FAILED page', async () => {
+      const vercelErrorBody =
+        'A server error has occurred\nFUNCTION_INVOCATION_FAILED\nsfo1::abc-123';
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: '',
+        text: () => Promise.resolve(vercelErrorBody),
+      });
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.message).toContain('unexpected error');
+        expect(result.error.message).not.toContain('FUNCTION_INVOCATION_FAILED');
+        expect(result.error.message).not.toContain('sfo1::');
+      }
+    });
+
+    it('returns user-friendly message when Vercel returns FUNCTION_INVOCATION_TIMEOUT page', async () => {
+      const vercelErrorBody = 'A server error has occurred\nFUNCTION_INVOCATION_TIMEOUT\nsfo1::abc-123';
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 504,
+        statusText: '',
+        text: () => Promise.resolve(vercelErrorBody),
+      });
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) {
+        expect(result.error.message).toContain('unexpected error');
+        expect(result.error.message).not.toContain('FUNCTION_INVOCATION_TIMEOUT');
+      }
+    });
+
     it('returns err when 200 but body missing url', async () => {
       mockFetch.mockResolvedValue({
         ok: true,

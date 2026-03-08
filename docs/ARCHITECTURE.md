@@ -15,19 +15,25 @@
 2. **Audio engine** is a singleton (`services/audioEngine.ts`). `setSongData(song)` syncs the current song; playback uses `stepsPerPattern`, `swing`, `bpm`, and per-track `muted`/`solo`/`volume`/`pan`.
 3. **Step editing**: Sequencer calls `onStepToggle(step)`; App adds or removes a `NoteEvent` for that step (default note by track type).
 4. **Persistence**: `storageService` loads/saves JSON to localStorage and parses with `parseSongResponse` (Zod). Export/import use the same schema.
-5. **Music generation**: User types prompt → Generate → `textToAudioService.generateAudioFromText()` → POST `/api/generate-audio` → Replicate MusicGen → `createGeneratedAudioTrack()` → new audio track appended.
+5. **Music generation**: User types prompt → Generate → `textToAudioService.generateAudioFromText()` → POST `/api/generate-audio` → HuggingFace or Replicate MusicGen → `createGeneratedAudioTrack()` → new audio track appended.
 
 ## Music generation (text-to-audio)
 
 End-to-end flow:
 
-1. **Frontend** (`App.tsx`): User enters prompt, clicks Generate. Calls `generateAudioFromText(prompt, 8)`.
-2. **Client service** (`services/textToAudioService.ts`): Validates input with Zod (`generateAudioRequestSchema`), POSTs to `/api/generate-audio`, validates response with `generateAudioResponseSchema`. Returns `Result<{ url }, Error>`.
-3. **API** (`api/generate-audio.ts`): Vercel serverless. Validates body with `parseGenerateAudioRequest`, calls Replicate MusicGen, returns `{ url }` or `{ error }`. 90s timeout client-side; 120s `maxDuration` on Vercel.
+1. **Frontend** (`App.tsx`): User enters prompt, clicks Generate. Calls `generateAudioFromText(prompt, duration, modelVersion)`.
+2. **Client service** (`services/textToAudioService.ts`): Validates input with Zod (`generateAudioRequestSchema`), POSTs to `/api/generate-audio`, validates response with `generateAudioResponseSchema`. Returns `Result<{ url }, Error>`. Client-side fetch timeout: 300s.
+3. **API** (`api/generate-audio.ts`): Vercel serverless (`maxDuration: 300s`). Validates body with `parseGenerateAudioRequest`, calls **HuggingFace Inference API** (preferred, returns base64 data URL) or **Replicate** (fallback, returns remote URL). Each backend has a 250s hard timeout (fires before Vercel's 300s limit, preventing `FUNCTION_INVOCATION_FAILED`). Returns `{ url }` or `{ error }`.
 4. **Track creation** (`lib/createGeneratedAudioTrack.ts`): Pure function. Builds `Track` with `type: 'audio'` and `audioUrl` for the DAW.
 5. **Audio engine**: Preloads and plays audio tracks from `audioUrl` at step 0 each loop.
 
-**Schemas** (`schemas/generateAudioSchema.ts`): Shared request/response validation. Duration 1–30s, default 8. Prompt max 2000 chars.
+**Backend selection** (first match wins):
+- `HUGGINGFACE_API_TOKEN` set → Meta MusicGen via HuggingFace Inference API (returns base64 data URL)
+- `REPLICATE_API_TOKEN` set → Meta MusicGen via Replicate (returns remote URL)
+
+**Vercel plan requirement**: Audio generation requires a Vercel Pro plan (or higher) because MusicGen inference takes 30–300 seconds (cold start). Hobby plan functions are limited to 10s by default and cannot complete MusicGen requests.
+
+**Schemas** (`schemas/generateAudioSchema.ts`): Shared request/response validation. Duration 10–15s (clamped), default 12s. Prompt max 2000 chars.
 
 ## Types (core)
 

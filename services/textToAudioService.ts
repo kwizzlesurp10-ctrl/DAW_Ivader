@@ -16,6 +16,17 @@ export type GenerateAudioResult = GenerateAudioSuccess;
 const FETCH_TIMEOUT_MS = 300_000;
 
 /**
+ * Patterns that identify Vercel infrastructure error pages (non-JSON 500/504 responses).
+ * When any of these appear in the response body, we show a generic retry message
+ * instead of exposing raw Vercel internals (e.g. FUNCTION_INVOCATION_FAILED, request IDs).
+ */
+const VERCEL_INFRA_ERROR_PATTERNS = [
+  'FUNCTION_INVOCATION_FAILED',
+  'FUNCTION_INVOCATION_TIMEOUT',
+  'A server error has occurred',
+] as const;
+
+/**
  * Call the app's serverless API to generate audio from text (MusicGen).
  * In production the API runs on the same origin; in dev use Vercel dev or full URL.
  *
@@ -67,11 +78,15 @@ export async function generateAudioFromText(
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
+      // Non-JSON response from server (e.g. Vercel infrastructure error page)
+      const isVercelInfraError = VERCEL_INFRA_ERROR_PATTERNS.some((p) => text.includes(p));
       return err(
         new Error(
           res.ok
             ? 'Invalid response from server'
-            : `Generate failed: ${res.status} ${res.statusText}${text ? ` — ${text.slice(0, 200)}` : ''}`
+            : isVercelInfraError
+              ? 'Generate failed: The server encountered an unexpected error. Please try again in a moment.'
+              : `Generate failed: ${res.status} ${res.statusText}${text ? ` — ${text.slice(0, 200)}` : ''}`
         )
       );
     }

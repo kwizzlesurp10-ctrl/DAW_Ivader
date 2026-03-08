@@ -28,6 +28,13 @@ const MUSICGEN_TOKENS_PER_SECOND = 50;
 const HF_REQUEST_TIMEOUT_MS = 250_000;
 
 /**
+ * Timeout for the Replicate API request.
+ * Must be less than maxDuration (300s) so we can return a proper error
+ * rather than letting Vercel kill the function (FUNCTION_INVOCATION_FAILED).
+ */
+const REPLICATE_REQUEST_TIMEOUT_MS = 250_000;
+
+/**
  * Polyfill for AbortSignal.any() — available only in Node.js ≥20.3 / browsers 2023+.
  * Returns an AbortSignal that aborts as soon as any of the provided signals aborts.
  * Works on Node.js 18+ (the Vercel serverless default runtime).
@@ -260,15 +267,30 @@ async function handleRequest(request: Request): Promise<Response> {
 
   // Replicate backend (fallback)
   let output: unknown;
+  const replicateTimeoutController = new AbortController();
+  const replicateTimeoutId = setTimeout(
+    () => replicateTimeoutController.abort(),
+    REPLICATE_REQUEST_TIMEOUT_MS
+  );
   try {
     const replicate = new Replicate({ auth: replicateToken! });
     output = await replicate.run(MUSICGEN_REPLICATE_MODEL, {
       input: { prompt, duration, model_version },
-      signal: request.signal,
+      signal: replicateTimeoutController.signal,
     });
   } catch (err) {
+    clearTimeout(replicateTimeoutId);
+    const name = (err as Error)?.name;
     const message = err instanceof Error ? err.message : String(err);
+    if (name === 'AbortError') {
+      return jsonResponse(
+        { error: 'Generation failed: Replicate request timed out. The model may be cold — try again in a moment.' },
+        502
+      );
+    }
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
+  } finally {
+    clearTimeout(replicateTimeoutId);
   }
 
   // Replicate v1.x wraps audio URLs in FileOutput objects (toString() = URL).
