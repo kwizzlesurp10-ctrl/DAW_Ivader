@@ -416,6 +416,29 @@ describe('api/generate-audio — HuggingFace backend', () => {
         expect(result.error).toContain('Network error');
       }
     });
+
+    it('propagates abort from an already-aborted caller signal', async () => {
+      // When the caller signal is already aborted before the call,
+      // the combined signal should also be aborted and fetch should see it
+      const callerController = new AbortController();
+      callerController.abort('test-abort');
+
+      const fetchMock = vi.fn().mockRejectedValue(
+        Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await generateWithHuggingFace('tok', 'test', 8, 'large', callerController.signal);
+
+      // The combined signal passed to fetch should already be aborted
+      const [, fetchOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect((fetchOptions.signal as AbortSignal).aborted).toBe(true);
+
+      expect('error' in result).toBe(true);
+      if ('error' in result) {
+        expect(result.error).toContain('timed out');
+      }
+    });
   });
 
   describe('handler with HuggingFace backend', () => {

@@ -28,6 +28,27 @@ const MUSICGEN_TOKENS_PER_SECOND = 50;
 const HF_REQUEST_TIMEOUT_MS = 250_000;
 
 /**
+ * Polyfill for AbortSignal.any() — available only in Node.js ≥20.3 / browsers 2023+.
+ * Returns an AbortSignal that aborts as soon as any of the provided signals aborts.
+ * Works on Node.js 18+ (the Vercel serverless default runtime).
+ */
+function anyAbortSignal(signals: AbortSignal[]): AbortSignal {
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      return controller.signal;
+    }
+    signal.addEventListener(
+      'abort',
+      () => controller.abort(signal.reason),
+      { once: true }
+    );
+  }
+  return controller.signal;
+}
+
+/**
  * Extract a plain URL string from a Replicate output value.
  * Replicate v1.x wraps audio URLs in FileOutput objects; older versions
  * return plain strings. Both are handled here.
@@ -92,7 +113,7 @@ export async function generateWithHuggingFace(
   const timeoutController = new AbortController();
   const timeoutId = setTimeout(() => timeoutController.abort(), HF_REQUEST_TIMEOUT_MS);
   const combinedSignal = signal
-    ? AbortSignal.any([signal, timeoutController.signal])
+    ? anyAbortSignal([signal, timeoutController.signal])
     : timeoutController.signal;
 
   let res: Response;
