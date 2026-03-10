@@ -18,7 +18,6 @@ describe('api/generate-audio (communication layer)', () => {
   beforeEach(async () => {
     vi.resetModules();
     process.env.REPLICATE_API_TOKEN = 'test-token';
-    delete process.env.HUGGINGFACE_API_TOKEN;
     const mod = await import('./generate-audio');
     handler = mod.default;
     mockRun.mockReset();
@@ -26,7 +25,6 @@ describe('api/generate-audio (communication layer)', () => {
 
   afterEach(() => {
     delete process.env.REPLICATE_API_TOKEN;
-    delete process.env.HUGGINGFACE_API_TOKEN;
     vi.restoreAllMocks();
   });
 
@@ -84,9 +82,8 @@ describe('api/generate-audio (communication layer)', () => {
   });
 
   describe('auth', () => {
-    it('returns 503 when neither HUGGINGFACE_API_TOKEN nor REPLICATE_API_TOKEN is set', async () => {
+    it('returns 503 when REPLICATE_API_TOKEN is not set', async () => {
       delete process.env.REPLICATE_API_TOKEN;
-      delete process.env.HUGGINGFACE_API_TOKEN;
       vi.resetModules();
       const mod = await import('./generate-audio');
       const h = mod.default;
@@ -101,7 +98,7 @@ describe('api/generate-audio (communication layer)', () => {
 
       expect(res.status).toBe(503);
       const data = await res.json();
-      expect(data.error).toContain('No audio backend configured');
+      expect(data.error).toContain('REPLICATE_API_TOKEN');
     });
   });
 
@@ -140,44 +137,28 @@ describe('api/generate-audio (communication layer)', () => {
       expect(res.status).toBe(400);
     });
 
-    it('accepts prompt only and defaults duration', async () => {
+    it('sends prompt as lyrics (max 400 chars) to MiniMax', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
 
       const res = await post({ prompt: 'test' });
 
       expect(res.status).toBe(200);
       expect(mockRun).toHaveBeenCalledWith(
-        expect.any(String),
+        'minimax/music-01',
         expect.objectContaining({
-          input: expect.objectContaining({ prompt: 'test', duration: 12 }),
+          input: { lyrics: 'test' },
         })
       );
     });
 
-    it('clamps duration above max to max', async () => {
-      mockRun.mockResolvedValue('https://x.com/a.wav');
+    it('returns 400 when prompt exceeds 400 chars (no silent truncation)', async () => {
+      const long = 'a'.repeat(401);
+      const res = await post({ prompt: long });
 
-      await post({ prompt: 'test', duration: 100 });
-
-      expect(mockRun).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          input: expect.objectContaining({ duration: 15 }),
-        })
-      );
-    });
-
-    it('clamps duration below min to min', async () => {
-      mockRun.mockResolvedValue('https://x.com/a.wav');
-
-      await post({ prompt: 'test', duration: 0 });
-
-      expect(mockRun).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          input: expect.objectContaining({ duration: 10 }),
-        })
-      );
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toContain('too long');
+      expect(mockRun).not.toHaveBeenCalled();
     });
   });
 
@@ -197,7 +178,7 @@ describe('api/generate-audio (communication layer)', () => {
     it('returns 200 with url when Replicate returns array', async () => {
       mockRun.mockResolvedValue(['https://replicate.delivery/abc.wav']);
 
-      const res = await post({ prompt: 'test', duration: 5 });
+      const res = await post({ prompt: 'test' });
 
       expect(res.status).toBe(200);
       const data = await res.json();
@@ -264,194 +245,3 @@ describe('api/generate-audio (communication layer)', () => {
   });
 });
 
-describe('api/generate-audio — HuggingFace backend', () => {
-  let generateWithHuggingFace: (
-    token: string,
-    prompt: string,
-    duration: number,
-    modelVersion: import('../schemas/generateAudioSchema').MusicGenModelVersion
-  ) => Promise<{ url: string } | { error: string }>;
-  let handler: (req: Request) => Promise<Response>;
-
-  beforeEach(async () => {
-    vi.resetModules();
-    delete process.env.REPLICATE_API_TOKEN;
-    process.env.HUGGINGFACE_API_TOKEN = 'hf-test-token';
-    const mod = await import('./generate-audio');
-    generateWithHuggingFace = mod.generateWithHuggingFace;
-    handler = mod.default;
-  });
-
-  afterEach(() => {
-    delete process.env.HUGGINGFACE_API_TOKEN;
-    delete process.env.REPLICATE_API_TOKEN;
-    vi.restoreAllMocks();
-  });
-
-  function mockFetchOk(audioBytes: Uint8Array, contentType = 'audio/wav') {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(audioBytes, {
-          status: 200,
-          headers: { 'Content-Type': contentType },
-        })
-      )
-    );
-  }
-
-  function mockFetchError(status: number, body = 'Service unavailable') {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response(body, { status }))
-    );
-  }
-
-  describe('generateWithHuggingFace()', () => {
-    it('returns data URL on success', async () => {
-      const fakeWav = new Uint8Array([82, 73, 70, 70]); // "RIFF"
-      mockFetchOk(fakeWav, 'audio/wav');
-
-      const result = await generateWithHuggingFace('tok', 'dark bass', 8, 'large');
-
-      expect('url' in result).toBe(true);
-      if ('url' in result) {
-        expect(result.url).toMatch(/^data:audio\/wav;base64,/);
-      }
-    });
-
-    it('calls correct HuggingFace model URL for each variant', async () => {
-      const fetchMock = vi.fn().mockResolvedValue(
-        new Response(new Uint8Array([0]), { status: 200, headers: { 'Content-Type': 'audio/wav' } })
-      );
-      vi.stubGlobal('fetch', fetchMock);
-
-      const variants = [
-        ['small', 'facebook/musicgen-small'],
-        ['large', 'facebook/musicgen-large'],
-        ['stereo-large', 'facebook/musicgen-stereo-large'],
-        ['melody-large', 'facebook/musicgen-melody-large'],
-        ['stereo-melody-large', 'facebook/musicgen-stereo-melody-large'],
-      ] as const;
-
-      for (const [version, expectedModel] of variants) {
-        fetchMock.mockClear();
-        await generateWithHuggingFace('tok', 'test', 8, version);
-        expect(fetchMock).toHaveBeenCalledWith(
-          expect.stringContaining(expectedModel),
-          expect.any(Object)
-        );
-      }
-    });
-
-    it('sends Authorization header with Bearer token', async () => {
-      const fetchMock = vi.fn().mockResolvedValue(
-        new Response(new Uint8Array([0]), { status: 200, headers: { 'Content-Type': 'audio/wav' } })
-      );
-      vi.stubGlobal('fetch', fetchMock);
-
-      await generateWithHuggingFace('hf-abc123', 'jazz', 5, 'large');
-
-      const [, fetchOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
-      expect((fetchOptions.headers as Record<string, string>)['Authorization']).toBe('Bearer hf-abc123');
-    });
-
-    it('sends max_new_tokens proportional to duration', async () => {
-      const fetchMock = vi.fn().mockResolvedValue(
-        new Response(new Uint8Array([0]), { status: 200, headers: { 'Content-Type': 'audio/wav' } })
-      );
-      vi.stubGlobal('fetch', fetchMock);
-
-      await generateWithHuggingFace('tok', 'test', 10, 'large');
-
-      const [, fetchOptions] = fetchMock.mock.calls[0] as [string, RequestInit];
-      const body = JSON.parse(fetchOptions.body as string) as { parameters: { max_new_tokens: number } };
-      expect(body.parameters.max_new_tokens).toBe(500); // 10s * 50 tokens/s
-    });
-
-    it('returns error when HuggingFace returns non-OK status', async () => {
-      mockFetchError(503, 'Model loading');
-
-      const result = await generateWithHuggingFace('tok', 'test', 8, 'large');
-
-      expect('error' in result).toBe(true);
-      if ('error' in result) {
-        expect(result.error).toContain('503');
-      }
-    });
-
-    it('returns error when fetch throws (network failure)', async () => {
-      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('Network error')));
-
-      const result = await generateWithHuggingFace('tok', 'test', 8, 'large');
-
-      expect('error' in result).toBe(true);
-      if ('error' in result) {
-        expect(result.error).toContain('Network error');
-      }
-    });
-  });
-
-  describe('handler with HuggingFace backend', () => {
-    it('uses HuggingFace when HUGGINGFACE_API_TOKEN is set (no Replicate token)', async () => {
-      const fakeWav = new Uint8Array([82, 73, 70, 70]);
-      mockFetchOk(fakeWav, 'audio/wav');
-
-      const res = await handler(
-        new Request('https://example.com/api/generate-audio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'test' }),
-        })
-      );
-
-      expect(res.status).toBe(200);
-      const data = await res.json() as { url: string };
-      expect(data.url).toMatch(/^data:audio\/wav;base64,/);
-    });
-
-    it('prefers HuggingFace when both tokens are set', async () => {
-      process.env.REPLICATE_API_TOKEN = 'rep-token';
-      vi.resetModules();
-      process.env.HUGGINGFACE_API_TOKEN = 'hf-test-token';
-      const mod = await import('./generate-audio');
-      const h = mod.default;
-
-      const fakeWav = new Uint8Array([82, 73, 70, 70]);
-      const fetchMock = vi.fn().mockResolvedValue(
-        new Response(fakeWav, { status: 200, headers: { 'Content-Type': 'audio/wav' } })
-      );
-      vi.stubGlobal('fetch', fetchMock);
-
-      const res = await h(
-        new Request('https://example.com/api/generate-audio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'test' }),
-        })
-      );
-
-      expect(res.status).toBe(200);
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('api-inference.huggingface.co'),
-        expect.any(Object)
-      );
-    });
-
-    it('returns 502 when HuggingFace API returns error', async () => {
-      mockFetchError(503, 'Service overloaded');
-
-      const res = await handler(
-        new Request('https://example.com/api/generate-audio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'test' }),
-        })
-      );
-
-      expect(res.status).toBe(502);
-      const data = await res.json() as { error: string };
-      expect(data.error).toContain('Generation failed');
-    });
-  });
-});

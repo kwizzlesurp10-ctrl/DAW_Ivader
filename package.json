@@ -11,6 +11,7 @@
     "dev:full": "vercel dev",
     "build": "node scripts/check-node.js && vite build",
     "build:nvm": "bash scripts/build-with-nvm.sh build",
+    "build:system": "PATH=\"/usr/bin:$PATH\" node scripts/check-node.js && PATH=\"/usr/bin:$PATH\" node node_modules/vite/bin/vite.js build",
     "build:raw": "vite build",
     "preview": "node scripts/check-node.js && vite preview",
     "preview:nvm": "bash scripts/build-with-nvm.sh preview",
@@ -18,10 +19,12 @@
     "test:watch": "node scripts/check-node.js && vitest",
     "test:coverage": "node scripts/check-node.js && vitest run --coverage",
     "test:e2e": "node scripts/check-node.js && vitest run e2e/",
+    "test:e2e:system": "PATH=\"/usr/bin:$PATH\" node scripts/check-node.js && PATH=\"/usr/bin:$PATH\" node ./node_modules/vitest/vitest.mjs run e2e/",
+    "test:generate-audio": "node scripts/check-node.js && vitest run api/generate-audio schemas/generateAudioSchema services/textToAudioService e2e/generate-audio",
     "test:e2e:browser": "node scripts/check-node.js && playwright test",
     "validate:blueprint": "node scripts/validate-blueprint.mjs",
     "validate:blueprint:coverage": "node scripts/validate-blueprint.mjs --coverage",
-    "start:all": "pnpm run validate:blueprint && pnpm run dev"
+    "start:all": "npm run validate:blueprint && npm run dev"
   },
   "dependencies": {
     "@vercel/analytics": "^1.6.1",

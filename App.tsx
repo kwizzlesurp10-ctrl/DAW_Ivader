@@ -26,9 +26,6 @@ import {
 } from './lib/songMutations';
 import { SongData, Track, PlayState } from './types';
 import {
-  MUSICGEN_MODEL_VERSIONS,
-  type MusicGenModelVersion,
-  MUSICGEN_MODEL_VERSION_DEFAULT,
   GENERATE_AUDIO_DURATION_DEFAULT,
   GENERATE_AUDIO_DURATION_MIN,
   GENERATE_AUDIO_DURATION_MAX,
@@ -116,7 +113,6 @@ const App: React.FC = () => {
     }
   });
   const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
-  const [modelVersion, setModelVersion] = useState<MusicGenModelVersion>(MUSICGEN_MODEL_VERSION_DEFAULT);
   const [generationDuration, setGenerationDuration] = useState<number>(GENERATE_AUDIO_DURATION_DEFAULT);
 
   useEffect(() => {
@@ -175,7 +171,7 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    const result = await generateAudioFromText(prompt, generationDuration, modelVersion);
+    const result = await generateAudioFromText(prompt, generationDuration);
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
@@ -542,24 +538,8 @@ const App: React.FC = () => {
                 </button>
             </div>
 
-            {/* Audio backend configuration controls */}
+            {/* Duration hint (MiniMax outputs ~60s; slider kept for UI consistency) */}
             <div className="flex items-center gap-4 px-2 pb-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                    <label className="text-[9px] text-gray-500 tracking-widest uppercase flex items-center gap-1">
-                        <Sliders size={10} /> MODEL
-                    </label>
-                    <select
-                        value={modelVersion}
-                        onChange={(e) => setModelVersion(e.target.value as MusicGenModelVersion)}
-                        disabled={isGenerating}
-                        className="bg-black border border-gray-700 text-[#b026ff] text-[10px] font-mono px-2 py-1 focus:border-[#b026ff] focus:outline-none disabled:opacity-50 cursor-pointer"
-                        aria-label="MusicGen model version"
-                    >
-                        {MUSICGEN_MODEL_VERSIONS.map((v) => (
-                            <option key={v} value={v}>{v}</option>
-                        ))}
-                    </select>
-                </div>
                 <div className="flex items-center gap-2">
                     <label className="text-[9px] text-gray-500 tracking-widest uppercase">
                         DUR

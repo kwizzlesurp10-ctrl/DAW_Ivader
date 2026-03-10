@@ -4,35 +4,25 @@ import {
   generateAudioResponseSchema,
   type GenerateAudioRequest,
   type GenerateAudioSuccess,
-  type MusicGenModelVersion,
   GENERATE_AUDIO_DURATION_DEFAULT,
-  MUSICGEN_MODEL_VERSION_DEFAULT,
 } from '../schemas/generateAudioSchema';
 
-/** Client-side result type for successful generation. */
 export type GenerateAudioResult = GenerateAudioSuccess;
 
-/** Timeout (ms) — must be >= API maxDuration (300s). MusicGen can take 2–5 min with cold start. */
 const FETCH_TIMEOUT_MS = 300_000;
 
 /**
- * Call the app's serverless API to generate audio from text (MusicGen).
- * In production the API runs on the same origin; in dev use Vercel dev or full URL.
- *
- * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
- * @param durationSeconds - Clip length 10–15 seconds. Default 12.
- * @param modelVersion - MusicGen model to use: 'large' (default), 'stereo-large', 'melody-large', or 'stereo-melody-large'.
- * @returns Result with { url } on success, or Error on failure.
+ * Call POST /api/generate-audio (MiniMax Music 01 via Replicate).
+ * @param prompt - Text description or lyrics (e.g. "Dark cyberpunk bassline").
+ * @param durationSeconds - Optional; sent for client compatibility (MiniMax outputs ~60s).
  */
 export async function generateAudioFromText(
   prompt: string,
-  durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT,
-  modelVersion: MusicGenModelVersion = MUSICGEN_MODEL_VERSION_DEFAULT
+  durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT
 ): Promise<Result<GenerateAudioResult, Error>> {
   const parseResult = generateAudioRequestSchema.safeParse({
     prompt: prompt.trim(),
     duration: durationSeconds,
-    model_version: modelVersion,
   });
   if (!parseResult.success) {
     const e = parseResult.error as { message?: string; issues?: Array<{ message?: string }> };
@@ -42,7 +32,7 @@ export async function generateAudioFromText(
       'Invalid prompt';
     return err(new Error(msg));
   }
-  const { prompt: trimmed, duration, model_version } = parseResult.data;
+  const { prompt: trimmed, duration } = parseResult.data;
 
   const apiBase =
     typeof window !== 'undefined'
@@ -53,7 +43,7 @@ export async function generateAudioFromText(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const body: GenerateAudioRequest = { prompt: trimmed, duration, model_version };
+    const body: GenerateAudioRequest = { prompt: trimmed, duration };
     const res = await fetch(`${apiBase}/api/generate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

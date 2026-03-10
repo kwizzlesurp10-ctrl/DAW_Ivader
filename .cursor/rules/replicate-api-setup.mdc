@@ -32,7 +32,7 @@ Do **not** tell users that `npm run dev` alone is enough for Generate; the `/api
 
 ## Implementation reference
 
-- **Serverless:** `api/generate-audio.ts` — POST, reads `REPLICATE_API_TOKEN`, calls Replicate MusicGen, returns `{ url }`.
+- **Serverless:** `api/generate-audio.ts` — POST; **MiniMax Music 01** via Replicate only. Requires `REPLICATE_API_TOKEN`. Returns `{ url }`.
 - **Client:** `services/textToAudioService.ts` — `generateAudioFromText(prompt, duration)` calls `POST /api/generate-audio` and returns `Result<{ url }, Error>`.
 - **App:** Generate button calls `generateAudioFromText(prompt)` then adds a track with `type: 'audio'` and `audioUrl`.
 - **Docs:** Keep `.env.example` and README "Generate audio setup (Replicate)" section in sync with these steps.

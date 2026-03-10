@@ -16,6 +16,6 @@ export default defineConfig({
     command: 'npx vite',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
+    timeout: 60_000,
   },
 });
