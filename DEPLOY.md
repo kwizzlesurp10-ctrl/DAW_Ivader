@@ -34,3 +34,7 @@ Set `REPLICATE_API_TOKEN` to enable audio generation. Redeploy after adding env 
 After deploy:
 - **Default:** `https://<project>.vercel.app`
 - **Custom:** `https://yourdomain.com` (after DNS setup)
+
+## Troubleshooting
+
+- **"Function Invocation Failed" / 500 on Generate:** The API uses Vercel’s [fetch Web Standard](https://vercel.com/docs/functions/functions-api-reference#fetch-web-standard) (`export default { fetch }`). Ensure **Node.js Version** is **20.x** in Project → Settings → General, and **REPLICATE_API_TOKEN** is set for Production (and Preview if you test preview URLs). Check the **Logs** tab for the failing deployment to see the actual error.

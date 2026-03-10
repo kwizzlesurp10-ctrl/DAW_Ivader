@@ -75,10 +75,15 @@ export async function generateAudioFromText(
         );
       }
       const parsed = generateAudioResponseSchema.safeParse(data);
-      const msg =
+      const serverMessage =
         parsed.success && 'error' in parsed.data
           ? parsed.data.error
-          : `HTTP ${res.status}`;
+          : null;
+      const fallback = `HTTP ${res.status}`;
+      const msg =
+        serverMessage ?? (typeof text === 'string' && text.length > 0
+          ? `${fallback} — ${text.slice(0, 300)}`
+          : fallback);
       return err(new Error(msg));
     }
 

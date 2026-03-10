@@ -19,7 +19,7 @@ describe('api/generate-audio (communication layer)', () => {
     vi.resetModules();
     process.env.REPLICATE_API_TOKEN = 'test-token';
     const mod = await import('./generate-audio');
-    handler = mod.default;
+    handler = mod.default?.fetch ?? mod.default;
     mockRun.mockReset();
   });
 
@@ -86,7 +86,7 @@ describe('api/generate-audio (communication layer)', () => {
       delete process.env.REPLICATE_API_TOKEN;
       vi.resetModules();
       const mod = await import('./generate-audio');
-      const h = mod.default;
+      const h = mod.default?.fetch ?? mod.default;
 
       const res = await h(
         new Request('https://example.com/api/generate-audio', {

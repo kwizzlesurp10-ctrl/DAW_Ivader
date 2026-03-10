@@ -27,7 +27,7 @@ function jsonResponse(
   });
 }
 
-export default async function handler(request: Request): Promise<Response> {
+async function handler(request: Request): Promise<Response> {
   if (request == null || typeof request !== 'object' || typeof (request as Request).method !== 'string') {
     return jsonResponse({ error: 'Invalid request' }, 500);
   }
@@ -39,6 +39,10 @@ export default async function handler(request: Request): Promise<Response> {
     return jsonResponse({ error: `Server error: ${message}` }, 500);
   }
 }
+
+export default {
+  fetch: handler,
+};
 
 async function handleRequest(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {
