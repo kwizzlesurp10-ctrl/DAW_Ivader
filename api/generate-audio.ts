@@ -41,7 +41,18 @@ async function handler(request: Request): Promise<Response> {
 }
 
 export default {
-  fetch: handler,
+  async fetch(request: Request): Promise<Response> {
+    try {
+      return await handler(request);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[generate-audio] fetch wrapper', message);
+      return new Response(
+        JSON.stringify({ error: `Server error: ${message}` }),
+        { status: 500, headers: { 'Content-Type': 'application/json', ...CORS_HEADERS } }
+      );
+    }
+  },
 };
 
 async function handleRequest(request: Request): Promise<Response> {

@@ -37,4 +37,5 @@ After deploy:
 
 ## Troubleshooting
 
-- **"Function Invocation Failed" / 500 on Generate:** The API uses Vercel’s [fetch Web Standard](https://vercel.com/docs/functions/functions-api-reference#fetch-web-standard) (`export default { fetch }`). Ensure **Node.js Version** is **20.x** in Project → Settings → General, and **REPLICATE_API_TOKEN** is set for Production (and Preview if you test preview URLs). Check the **Logs** tab for the failing deployment to see the actual error.
+- **"Function Invocation Failed" / 500 on Generate:** The API uses Vercel’s [fetch Web Standard](https://vercel.com/docs/functions/functions-api-reference#fetch-web-standard) (`export default { fetch }`). Ensure **Node.js Version** is **20.x** in Project → Settings → General, and **REPLICATE_API_TOKEN** is set for **Production** (and Preview if you use preview URLs). Check the deployment’s **Logs** or **Functions** tab for the real error. `maxDuration: 300` requires Pro; on Hobby the function is limited to 10s (MiniMax often needs 30–60s, so Generate may time out on Hobby).
+- **Console: "[DEPRECATED] Default export is deprecated... use `import { create } from 'zustand'`":** This comes from Vercel’s instrumentation/analytics bundle, not your app code. Safe to ignore unless you use zustand directly.
