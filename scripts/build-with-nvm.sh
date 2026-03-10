@@ -7,9 +7,9 @@ if [[ ! -s "$NVM_DIR/nvm.sh" ]]; then
   exit 1
 fi
 source "$NVM_DIR/nvm.sh"
-NODE_BIN=$(nvm which 20 2>/dev/null || nvm which 18 2>/dev/null)
+NODE_BIN=$(nvm which 20 2>/dev/null)
 if [[ -z "$NODE_BIN" ]]; then
-  echo "Node 18+ not found. Run: nvm install 20"
+  echo "Node 20+ not found. Run: nvm install 20"
   exit 1
 fi
 exec "$NODE_BIN" node_modules/vite/bin/vite.js "$VITE_CMD"

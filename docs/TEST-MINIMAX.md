@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js 18+** (required by the project)
+- **Node.js 20+** (required by the project)
 - **Replicate API token** from [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
 
 ## 1. Run automated tests (no API token needed)

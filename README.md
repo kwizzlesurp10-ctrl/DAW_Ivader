@@ -24,7 +24,7 @@ View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYq
 
 ## Quick start (production)
 
-**Prerequisites:** Node.js 18+ (20+ recommended for best compatibility)
+**Prerequisites:** Node.js 20+
 
 ```bash
 # 1. Install
