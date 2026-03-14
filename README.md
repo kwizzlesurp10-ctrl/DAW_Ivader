@@ -1,20 +1,10 @@
-# README.md
+# DAW Ivader
 
-## Quick Start
+## Overview
+DAW Ivader is a revolutionary audio processing tool.
 
-- In your environment setup, set the following:
-  - `REPLICATE_API_TOKEN` recommended
-  - `HUGGINGFACE_API_TOKEN` fallback
+## Recommendations
+We recommend using **Replicate** as the primary platform for audio processing. If Replicate is not suitable for your needs, consider using **HuggingFace** as a fallback option.
 
-## Generate Audio
-
-### Options
-- **Option A:** Replicate (recommended)
-- **Option B:** HuggingFace (fallback)
-
-### Backend Selection
-When both tokens are set, Replicate takes priority.
-
-## Run Locally
-
-- Make sure to configure your environment variables in the above order accordingly.
+## Installation
+Follow these steps to install DAW Ivader...
