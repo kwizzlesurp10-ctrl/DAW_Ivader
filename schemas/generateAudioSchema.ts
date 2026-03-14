@@ -33,7 +33,7 @@ export const SUPPORTED_MODEL_VERSIONS = MUSICGEN_MODEL_VERSIONS;
  */
 export const generateAudioRequestSchema = z.object({
   prompt: z
-    .string()
+    .string({ error: 'Missing or empty prompt' })
     .transform((s) => s.trim())
     .pipe(
       z
