@@ -25,6 +25,7 @@ import {
   createEmptySynthTrack,
 } from './lib/songMutations';
 import { SongData, Track, PlayState } from './types';
+import { StableAudioModelVersion, STABLE_AUDIO_MODEL_VERSION_DEFAULT, STABLE_AUDIO_MODEL_VERSIONS } from './schemas/generateAudioSchema';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
@@ -87,6 +88,9 @@ const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<number>(-1);
   const [selectedStep, setSelectedStep] = useState<number>(0);
   const [prompt, setPrompt] = useState('');
+  const [modelVersion, setModelVersion] = useState<StableAudioModelVersion>(STABLE_AUDIO_MODEL_VERSION_DEFAULT);
+  const [generationDuration, setGenerationDuration] = useState(15);
+  const [generationSteps, setGenerationSteps] = useState(8);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string>(INITIAL_SONG.tracks[0].id);
   const [initialized, setInitialized] = useState(false);
@@ -143,8 +147,10 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    // Use Stable Audio 2.5 for high-fidelity 44.1kHz stereo generation
-    const result = await generateAudioFromText(prompt, 15);
+    // Use the selected Stable Audio model and parameters for generation
+    const result = await generateAudioFromText(prompt, generationDuration, modelVersion, {
+      steps: generationSteps
+    });
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
@@ -418,19 +424,76 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            <div className="flex gap-2 p-2">
-                <input 
-                    type="text" 
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    placeholder="Describe the music (e.g. 'Dark cyberpunk bassline, 128 BPM') — Premium stereo model with melody support"
-                    className="bg-black/50 border border-gray-800 flex-1 text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
-                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
-                />
+            <div className="flex gap-2 p-2 items-end">
+                <div className="flex flex-col gap-1 shrink-0">
+                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">AI_MODE</label>
+                    <div className="flex gap-1">
+                        {STABLE_AUDIO_MODEL_VERSIONS.map((v) => (
+                            <button
+                                key={v}
+                                onClick={() => setModelVersion(v)}
+                                className={`px-2 py-1 text-[9px] font-bold border transition-all ${
+                                    modelVersion === v 
+                                    ? 'bg-[#b026ff] border-[#b026ff] text-white shadow-[0_0_10px_rgba(176,38,255,0.5)]' 
+                                    : 'border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-400 bg-black/30'
+                                }`}
+                            >
+                                {v.replace('stable-audio-', '').toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="w-px h-8 bg-gray-800 mx-1 mb-1"></div>
+
+                <div className="flex flex-col gap-1 shrink-0">
+                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">LENGTH</label>
+                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
+                        <input 
+                            type="range" 
+                            min={1} 
+                            max={180} 
+                            value={generationDuration} 
+                            onChange={(e) => setGenerationDuration(Number(e.target.value))}
+                            className="w-16 h-1 accent-[#39ff14]"
+                        />
+                        <span className="text-[10px] font-mono text-[#39ff14] w-6">{generationDuration}s</span>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-1 shrink-0">
+                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">STEPS</label>
+                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
+                        <input 
+                            type="range" 
+                            min={4} 
+                            max={50} 
+                            value={generationSteps} 
+                            onChange={(e) => setGenerationSteps(Number(e.target.value))}
+                            className="w-16 h-1 accent-[#b026ff]"
+                        />
+                        <span className="text-[10px] font-mono text-[#b026ff] w-4">{generationSteps}</span>
+                    </div>
+                </div>
+                
+                <div className="w-px h-8 bg-gray-800 mx-1 mb-1"></div>
+
+                <div className="flex-1 flex flex-col gap-1">
+                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">PROMPT_SEQUENCE</label>
+                    <input 
+                        type="text" 
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        placeholder="Enter description (e.g. 'Epic cinematic orchestral with soaring strings, 120 BPM') ..."
+                        className="bg-black/50 border border-gray-800 w-full text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
+                        onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                    />
+                </div>
+
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="bg-[#39ff14] text-black font-bold px-6 py-2 hover:bg-[#b026ff] hover:text-white transition-all duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 clip-slant-right shadow-[0_0_15px_rgba(57,255,20,0.4)] hover:shadow-[0_0_20px_rgba(176,38,255,0.6)]"
+                    className="bg-[#39ff14] text-black font-bold px-6 py-2 h-[46px] hover:bg-[#b026ff] hover:text-white transition-all duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 clip-slant-right shadow-[0_0_15px_rgba(57,255,20,0.4)] hover:shadow-[0_0_20px_rgba(176,38,255,0.6)]"
                 >
                     {isGenerating ? <Activity className="animate-spin" /> : <Wand2 size={18} />}
                     {isGenerating ? "PROCESSING..." : "GENERATE"}

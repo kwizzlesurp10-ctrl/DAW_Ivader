@@ -13,6 +13,7 @@ export const GENERATE_AUDIO_PROMPT_MAX_LENGTH = 2000;
  */
 export const STABLE_AUDIO_MODEL_VERSIONS = [
   'stable-audio-2.5',
+  'stable-audio-open-1.0',
 ] as const;
 
 export type StableAudioModelVersion = (typeof STABLE_AUDIO_MODEL_VERSIONS)[number];
@@ -33,6 +34,10 @@ export const generateAudioRequestSchema = z.object({
         .min(1, 'Missing or empty prompt')
         .max(GENERATE_AUDIO_PROMPT_MAX_LENGTH, 'Prompt too long')
     ),
+  negative_prompt: z
+    .string()
+    .optional()
+    .transform((s) => (s ?? '').trim()),
   duration: z
     .number()
     .optional()
@@ -40,6 +45,16 @@ export const generateAudioRequestSchema = z.object({
     .transform((v) =>
       Math.max(GENERATE_AUDIO_DURATION_MIN, Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(v)))
     ),
+  steps: z
+    .number()
+    .optional()
+    .default(8)
+    .transform((v) => Math.max(4, Math.min(50, Math.round(v)))),
+  cfg_scale: z
+    .number()
+    .optional()
+    .default(7)
+    .transform((v) => Math.max(1, Math.min(20, v))),
   model_version: z
     .enum(STABLE_AUDIO_MODEL_VERSIONS)
     .optional()

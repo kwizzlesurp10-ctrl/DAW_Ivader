@@ -1,8 +1,11 @@
 import Replicate from 'replicate';
 import { parseGenerateAudioRequest } from '../schemas/generateAudioSchema';
 
-/** Stability AI Stable Audio 2.5 model on Replicate. */
-const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
+/** Stability AI Stable Audio models on Replicate. */
+const MODELS: Record<string, string> = {
+  'stable-audio-2.5': 'stability-ai/stable-audio-2.5',
+  'stable-audio-open-1.0': 'stackadoc/stable-audio-open-1.0',
+};
 
 /**
  * Vercel serverless: POST /api/generate-audio
@@ -71,13 +74,24 @@ async function handleRequest(request: Request): Promise<Response> {
   if (!parseResult.ok) {
     return jsonResponse({ error: parseResult.error }, 400);
   }
-  const { prompt, duration, model_version } = parseResult.data;
+  const { prompt, duration, model_version, negative_prompt, steps, cfg_scale } = parseResult.data;
+
+  const modelIdentifier = MODELS[model_version];
+  if (!modelIdentifier) {
+    return jsonResponse({ error: `Invalid model version: ${model_version}` }, 400);
+  }
 
   let output: unknown;
   try {
     const replicate = new Replicate({ auth: token });
-    output = await replicate.run(STABLE_AUDIO_MODEL, {
-      input: { prompt, duration },
+    output = await replicate.run(modelIdentifier, {
+      input: { 
+        prompt, 
+        duration,
+        negative_prompt,
+        steps,
+        cfg_scale
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

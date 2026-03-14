@@ -56,7 +56,7 @@ describe('textToAudioService (communication layer)', () => {
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'dark bass', duration: 15, model_version: 'stable-audio-2.5' }),
+          body: JSON.stringify({ prompt: 'dark bass', duration: 15, model_version: 'stable-audio-2.5', negative_prompt: '', steps: 8, cfg_scale: 7 }),
         })
       );
     });
@@ -74,7 +74,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5' }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5', negative_prompt: '', steps: 8, cfg_scale: 7 }),
         })
       );
     });
@@ -92,7 +92,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 30, model_version: 'stable-audio-2.5' }),
+          body: JSON.stringify({ prompt: 'test', duration: 30, model_version: 'stable-audio-2.5', negative_prompt: '', steps: 8, cfg_scale: 7 }),
         })
       );
     });
@@ -110,7 +110,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5' }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5', negative_prompt: '', steps: 8, cfg_scale: 7 }),
         })
       );
     });
@@ -128,7 +128,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5' }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5', negative_prompt: '', steps: 8, cfg_scale: 7 }),
         })
       );
     });

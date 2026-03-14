@@ -19,20 +19,27 @@ const FETCH_TIMEOUT_MS = 90_000;
  * Call the app's serverless API to generate audio from text (Stable Audio).
  * In production the API runs on the same origin; in dev use Vercel dev or full URL.
  *
- * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
+ * @param prompt - Text description of the desired music.
  * @param durationSeconds - Clip length in seconds. Default 15.
  * @param modelVersion - Stable Audio model to use: 'stable-audio-2.5' (default).
+ * @param options - Optional parameters: negative_prompt, steps, cfg_scale.
  * @returns Result with { url } on success, or Error on failure.
  */
 export async function generateAudioFromText(
   prompt: string,
   durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT,
-  modelVersion: StableAudioModelVersion = STABLE_AUDIO_MODEL_VERSION_DEFAULT
+  modelVersion: StableAudioModelVersion = STABLE_AUDIO_MODEL_VERSION_DEFAULT,
+  options: {
+    negative_prompt?: string;
+    steps?: number;
+    cfg_scale?: number;
+  } = {}
 ): Promise<Result<GenerateAudioResult, Error>> {
   const parseResult = generateAudioRequestSchema.safeParse({
     prompt: prompt.trim(),
     duration: durationSeconds,
     model_version: modelVersion,
+    ...options,
   });
   if (!parseResult.success) {
     const e = parseResult.error as { message?: string; issues?: Array<{ message?: string }> };
@@ -42,7 +49,7 @@ export async function generateAudioFromText(
       'Invalid prompt';
     return err(new Error(msg));
   }
-  const { prompt: trimmed, duration, model_version } = parseResult.data;
+  const { prompt: trimmed, duration, model_version, negative_prompt, steps, cfg_scale } = parseResult.data;
 
   const apiBase =
     typeof window !== 'undefined'
@@ -53,7 +60,14 @@ export async function generateAudioFromText(
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const body: GenerateAudioRequest = { prompt: trimmed, duration, model_version };
+    const body: GenerateAudioRequest = { 
+      prompt: trimmed, 
+      duration, 
+      model_version,
+      negative_prompt,
+      steps,
+      cfg_scale
+    };
     const res = await fetch(`${apiBase}/api/generate-audio`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
