@@ -1,123 +1,72 @@
 import { ok, err, type Result } from '../lib/result';
-import {
-  generateAudioRequestSchema,
-  generateAudioResponseSchema,
-  type GenerateAudioRequest,
-  type GenerateAudioSuccess,
-  type MusicGenModelVersion,
-  GENERATE_AUDIO_DURATION_DEFAULT,
-  MUSICGEN_MODEL_VERSION_DEFAULT,
-} from '../schemas/generateAudioSchema';
 
 /** Client-side result type for successful generation. */
-export type GenerateAudioResult = GenerateAudioSuccess;
+export type GenerateAudioResult = { url: string };
 
-/** Timeout (ms) — must be >= API maxDuration (300s). MusicGen can take 2–5 min with cold start. */
-const FETCH_TIMEOUT_MS = 300_000;
+/** How often to poll the prediction status (ms). */
+const POLL_INTERVAL_MS = 4_000;
+/** Max total polling time before giving up (ms) — 10 minutes. */
+const POLL_TIMEOUT_MS = 600_000;
+/** API endpoint path. */
+const GENERATE_AUDIO_API = '/api/generate-audio';
 
 /**
- * Call the app's serverless API to generate audio from text (MusicGen).
- * In production the API runs on the same origin; in dev use Vercel dev or full URL.
+ * Generate audio from a text prompt using the async Replicate polling flow:
+ * 1. POST /api/generate-audio  → { predictionId }
+ * 2. Poll GET /api/generate-audio?id=<predictionId> every 4s until succeeded/failed.
+ * 3. On success, return { url }.
  *
- * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
- * @param durationSeconds - Clip length 10–15 seconds. Default 12.
- * @param modelVersion - MusicGen model to use: 'large' (default), 'stereo-large', 'melody-large', or 'stereo-melody-large'.
- * @returns Result with { url } on success, or Error on failure.
+ * This approach avoids the Vercel 300s serverless function timeout since the
+ * POST returns almost immediately with the prediction ID.
  */
 export async function generateAudioFromText(
   prompt: string,
-  durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT,
-  modelVersion: MusicGenModelVersion = MUSICGEN_MODEL_VERSION_DEFAULT
+  duration: number,
+  modelVersion?: string
 ): Promise<Result<GenerateAudioResult, Error>> {
-  const parseResult = generateAudioRequestSchema.safeParse({
-    prompt: prompt.trim(),
-    duration: durationSeconds,
-    model_version: modelVersion,
-  });
-  if (!parseResult.success) {
-    const e = parseResult.error as { message?: string; issues?: Array<{ message?: string }> };
-    const msg =
-      (Array.isArray(e.issues) ? e.issues.map((i) => i.message).join('; ') : null) ||
-      e.message ||
-      'Invalid prompt';
-    return err(new Error(msg));
-  }
-  const { prompt: trimmed, duration, model_version } = parseResult.data;
-
-  const apiBase =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : (process.env.VITE_APP_URL as string | undefined) ?? '';
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
+  // Step 1: Create the prediction
+  let predictionId: string;
   try {
-    const body: GenerateAudioRequest = { prompt: trimmed, duration, model_version };
-    const res = await fetch(`${apiBase}/api/generate-audio`, {
+    const response = await fetch(GENERATE_AUDIO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
+      body: JSON.stringify({ prompt, duration, model_version: modelVersion }),
     });
-    clearTimeout(timeoutId);
-
-    const text = await res.text();
-    let data: unknown;
-    try {
-      data = text ? JSON.parse(text) : {};
-    } catch {
-      return err(
-        new Error(
-          res.ok
-            ? 'Invalid response from server'
-            : `Generate failed: ${res.status} ${res.statusText}${text ? ` — ${text.slice(0, 200)}` : ''}`
-        )
-      );
+    const data = await response.json() as Record<string, unknown>;
+    if (!response.ok || typeof data.predictionId !== 'string') {
+      const errorMsg = typeof data.error === 'string' ? data.error : `HTTP ${response.status}`;
+      return err(new Error(errorMsg));
     }
-
-    if (!res.ok) {
-      if (res.status === 404) {
-        return err(
-          new Error(
-            'Generate API not found. Run with "npm run dev:full" or "vercel dev" so /api/generate-audio is available (plain "npm run dev" does not serve the API).'
-          )
-        );
-      }
-      const parsed = generateAudioResponseSchema.safeParse(data);
-      const msg =
-        parsed.success && 'error' in parsed.data
-          ? parsed.data.error
-          : `HTTP ${res.status}`;
-      return err(new Error(msg));
-    }
-
-    const parsed = generateAudioResponseSchema.safeParse(data);
-    const url =
-      parsed.success &&
-      'url' in parsed.data &&
-      typeof parsed.data.url === 'string'
-        ? parsed.data.url
-        : null;
-    if (!url) {
-      return err(new Error('Invalid response: no audio URL'));
-    }
-
-    return ok({ url });
+    predictionId = data.predictionId;
   } catch (e) {
-    clearTimeout(timeoutId);
-    const message = e instanceof Error ? e.message : String(e);
-    if (
-      message === 'Failed to fetch' ||
-      (e as Error & { code?: string })?.code === 'ERR_NETWORK_CHANGED'
-    ) {
-      return err(
-        new Error('Network error. Check your connection and try again.')
-      );
-    }
-    if ((e as Error & { name?: string })?.name === 'AbortError') {
-      return err(new Error('Request timed out. Try again.'));
-    }
-    return err(new Error(message));
+    return err(e instanceof Error ? e : new Error(String(e)));
   }
+
+  // Step 2: Poll until done
+  const deadline = Date.now() + POLL_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    await sleep(POLL_INTERVAL_MS);
+    try {
+      const response = await fetch(`${GENERATE_AUDIO_API}?id=${encodeURIComponent(predictionId)}`);
+      const data = await response.json() as Record<string, unknown>;
+
+      if (data.status === 'succeeded' && typeof data.url === 'string') {
+        return ok({ url: data.url });
+      }
+      if (data.status === 'failed' || data.status === 'canceled') {
+        const errorMsg = typeof data.error === 'string' ? data.error : 'Generation failed';
+        return err(new Error(errorMsg));
+      }
+      // status === 'starting' | 'processing' | 202 — keep polling
+    } catch (e) {
+      // Network hiccup — keep trying until deadline
+      console.warn('[textToAudioService] poll error, retrying:', e);
+    }
+  }
+
+  return err(new Error('Generation timed out after 10 minutes'));
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
