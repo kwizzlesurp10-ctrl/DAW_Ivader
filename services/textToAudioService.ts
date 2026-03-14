@@ -1,5 +1,9 @@
 import { ok, err, type Result } from '../lib/result';
-import { GENERATE_AUDIO_PROMPT_MAX_LENGTH } from '../schemas/generateAudioSchema';
+import {
+  GENERATE_AUDIO_PROMPT_MAX_LENGTH,
+  GENERATE_AUDIO_DURATION_MIN,
+  GENERATE_AUDIO_DURATION_MAX,
+} from '../schemas/generateAudioSchema';
 
 /** Client-side result type for successful generation. */
 export type GenerateAudioResult = { url: string };
@@ -34,12 +38,16 @@ export async function generateAudioFromText(
   }
 
   // --- Fetch ---
+  const clampedDuration = Math.max(
+    GENERATE_AUDIO_DURATION_MIN,
+    Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(duration))
+  );
   let response: Response;
   try {
     response = await fetch(GENERATE_AUDIO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, duration, model_version: modelVersion }),
+      body: JSON.stringify({ prompt, duration: clampedDuration, model_version: modelVersion }),
     });
   } catch (e) {
     return err(normalizeNetworkError(e));
