@@ -318,7 +318,7 @@ describe('api/generate-audio — HuggingFace backend', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(audioBytes, {
+        new Response(audioBytes.buffer as ArrayBuffer, {
           status: 200,
           headers: { 'Content-Type': contentType },
         })

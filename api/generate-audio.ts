@@ -294,4 +294,7 @@ async function handleRequest(request: Request): Promise<Response> {
     }
     return jsonResponse({ url: result.url }, 200);
   }
+
+  // Unreachable: the guard above ensures at least one token is set.
+  return jsonResponse({ error: 'No audio backend configured' }, 503);
 }
