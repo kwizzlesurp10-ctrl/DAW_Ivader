@@ -34,8 +34,13 @@ export const SUPPORTED_MODEL_VERSIONS = MUSICGEN_MODEL_VERSIONS;
 export const generateAudioRequestSchema = z.object({
   prompt: z
     .string()
-    .min(1, 'Missing or empty prompt')
-    .max(GENERATE_AUDIO_PROMPT_MAX_LENGTH, 'Prompt too long'),
+    .transform((s) => s.trim())
+    .pipe(
+      z
+        .string()
+        .min(1, 'Missing or empty prompt')
+        .max(GENERATE_AUDIO_PROMPT_MAX_LENGTH, 'Prompt too long')
+    ),
   duration: z
     .number()
     .optional()
