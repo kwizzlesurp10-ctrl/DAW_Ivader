@@ -1,5 +1,27 @@
 import Replicate from 'replicate';
-import { parseGenerateAudioRequest } from '../schemas/generateAudioSchema';
+import { z } from 'zod';
+
+// Inlined from schemas/generateAudioSchema.ts
+const GENERATE_AUDIO_DURATION_MIN = 10;
+const GENERATE_AUDIO_DURATION_MAX = 15;
+const GENERATE_AUDIO_DURATION_DEFAULT = 12;
+const GENERATE_AUDIO_PROMPT_MAX_LENGTH = 2000;
+const MUSICGEN_MODEL_VERSIONS = ['small', 'large', 'stereo-large', 'melody-large', 'stereo-melody-large'] as const;
+type MusicGenModelVersion = (typeof MUSICGEN_MODEL_VERSIONS)[number];
+const MUSICGEN_MODEL_VERSION_DEFAULT: MusicGenModelVersion = 'large';
+const generateAudioRequestSchema = z.object({
+  prompt: z.optional(z.string()).transform((s) => (s ?? '').trim()).pipe(z.string().min(1, 'Missing or empty prompt').max(GENERATE_AUDIO_PROMPT_MAX_LENGTH, 'Prompt too long')),
+  duration: z.number().optional().default(GENERATE_AUDIO_DURATION_DEFAULT).transform((v) => Math.max(GENERATE_AUDIO_DURATION_MIN, Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(v)))),
+  model_version: z.enum(MUSICGEN_MODEL_VERSIONS).optional().default(MUSICGEN_MODEL_VERSION_DEFAULT),
+});
+type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;
+function parseGenerateAudioRequest(raw: unknown): { ok: true; data: GenerateAudioRequest } | { ok: false; error: string } {
+  const parsed = generateAudioRequestSchema.safeParse(raw);
+  if (parsed.success) { return { ok: true, data: parsed.data }; }
+  const err = parsed.error as { message?: string; issues?: Array<{ message?: string }> };
+  const msg = (Array.isArray(err.issues) ? err.issues.map((i) => i.message).join('; ') : null) || err.message || 'Invalid request';
+  return { ok: false, error: msg };
+}
 
 /** Stability AI Stable Audio 2.5 model on Replicate. */
 const STABLE_AUDIO_REPLICATE_MODEL = 'stability-ai/stable-audio-2.5';
