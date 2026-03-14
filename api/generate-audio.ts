@@ -226,10 +226,10 @@ async function handleRequest(request: Request): Promise<Response> {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const hfToken = process.env.HUGGINGFACE_API_TOKEN?.trim();
   const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
+  const hfToken = process.env.HUGGINGFACE_API_TOKEN?.trim();
 
-  if (!hfToken && !replicateToken) {
+  if (!replicateToken && !hfToken) {
     return jsonResponse(
       {
         error:
