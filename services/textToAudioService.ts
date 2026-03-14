@@ -55,15 +55,15 @@ export async function generateAudioFromText(
     } catch {
       return err(new Error('Invalid response from server (could not parse JSON)'));
     }
-    if (typeof data.predictionId !== 'string') {
-      // Also handle direct { url } for test mocks that return url immediately
-      if (typeof data.url === 'string') {
-        return ok({ url: data.url });
-      }
-      const errMsg = typeof data.error === 'string' ? data.error : `HTTP ${response.status}`;
-      return err(new Error(errMsg));
+    if (typeof data.predictionId === 'string') {
+      predictionId = data.predictionId;
+    } else if (typeof data.url === 'string') {
+      // Some test mocks return { url } directly from POST — treat as immediate success
+      return ok({ url: data.url });
+    } else {
+      // 2xx but neither predictionId nor url — nothing usable returned
+      return err(new Error('Server returned no audio URL in response'));
     }
-    predictionId = data.predictionId;
   } catch (e) {
     return err(normalizeNetworkError(e));
   }
