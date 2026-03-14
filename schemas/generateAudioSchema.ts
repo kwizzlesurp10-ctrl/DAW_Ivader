@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Valid duration range for MusicGen (seconds). Limited to 10–15s for faster generation and lower timeouts. */
+/** Valid duration range for Stable Audio 2.5 (seconds). */
 export const GENERATE_AUDIO_DURATION_MIN = 10;
 export const GENERATE_AUDIO_DURATION_MAX = 15;
 export const GENERATE_AUDIO_DURATION_DEFAULT = 12;
@@ -9,12 +9,10 @@ export const GENERATE_AUDIO_DURATION_DEFAULT = 12;
 export const GENERATE_AUDIO_PROMPT_MAX_LENGTH = 2000;
 
 /**
- * Available MusicGen model versions.
- * - small: 300M parameters, faster (HuggingFace Inference API only)
- * - large: 3.3B parameters, mono output (default)
- * - stereo-large: 3.3B parameters, stereo output (premium)
- * - melody-large: 3.3B parameters, supports melody conditioning (premium)
- * - stereo-melody-large: 3.3B parameters, stereo + melody conditioning (premium)
+ * Legacy model version values.
+ * These were used with the MusicGen/HuggingFace backend.
+ * The field is still accepted for backward compatibility but is
+ * ignored by the current Stable Audio 2.5 Replicate backend.
  */
 export const MUSICGEN_MODEL_VERSIONS = [
   'small',
@@ -23,14 +21,14 @@ export const MUSICGEN_MODEL_VERSIONS = [
   'melody-large',
   'stereo-melody-large',
 ] as const;
-
 export type MusicGenModelVersion = (typeof MUSICGEN_MODEL_VERSIONS)[number];
-
 export const MUSICGEN_MODEL_VERSION_DEFAULT: MusicGenModelVersion = 'large';
 
 /**
  * Request body for POST /api/generate-audio.
  * Validated with Zod on both client (before send) and server.
+ * Note: model_version is accepted for backward compatibility but
+ * is not used by the Stable Audio 2.5 Replicate backend.
  */
 export const generateAudioRequestSchema = z.object({
   prompt: z
@@ -54,7 +52,6 @@ export const generateAudioRequestSchema = z.object({
     .optional()
     .default(MUSICGEN_MODEL_VERSION_DEFAULT),
 });
-
 export type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;
 
 /** Successful response shape. */
@@ -72,7 +69,6 @@ export const generateAudioResponseSchema = z.union([
   generateAudioSuccessSchema,
   generateAudioErrorSchema,
 ]);
-
 export type GenerateAudioSuccess = z.infer<typeof generateAudioSuccessSchema>;
 export type GenerateAudioError = z.infer<typeof generateAudioErrorSchema>;
 export type GenerateAudioResponse = z.infer<typeof generateAudioResponseSchema>;
