@@ -1,12 +1,12 @@
 import Replicate from 'replicate';
 import { parseGenerateAudioRequest, type MusicGenModelVersion } from '../schemas/generateAudioSchema';
 
-/** Meta MusicGen model on Replicate. */
-const MUSICGEN_REPLICATE_MODEL =
-  'meta/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38';
+/** Stability AI Stable Audio 2.5 model on Replicate (recommended backend). */
+const STABLE_AUDIO_REPLICATE_MODEL = 'stability-ai/stable-audio-2.5';
 
 /**
  * HuggingFace Inference API model IDs for each MusicGen variant.
+ * Used as fallback when REPLICATE_API_TOKEN is not set.
  * See: https://huggingface.co/facebook
  */
 const HUGGINGFACE_MODEL_MAP: Record<MusicGenModelVersion, string> = {
@@ -17,7 +17,7 @@ const HUGGINGFACE_MODEL_MAP: Record<MusicGenModelVersion, string> = {
   'stereo-melody-large': 'facebook/musicgen-stereo-melody-large',
 };
 
-/** MusicGen generates ~50 audio tokens per second of output. */
+/** MusicGen generates ~50 audio tokens per second of output (HuggingFace fallback only). */
 const MUSICGEN_TOKENS_PER_SECOND = 50;
 
 /**
@@ -46,12 +46,22 @@ function anyAbortSignal(signals: AbortSignal[]): AbortSignal {
 
 /**
  * Extract a plain URL string from a Replicate output value.
- * Replicate v1.x wraps audio URLs in FileOutput objects; older versions
- * return plain strings. Both are handled here.
+ * Replicate v1.x wraps audio URLs in FileOutput objects. Three forms are handled:
+ *   1. Plain string URL
+ *   2. FileOutput with a `url()` method (as documented in Replicate JS SDK)
+ *   3. FileOutput whose `toString()` returns the URL
  */
 function extractReplicateUrl(value: unknown): string | null {
   if (typeof value === 'string') return value;
   if (value && typeof value === 'object') {
+    // Replicate FileOutput: url() method returns the URL string
+    if (typeof (value as { url?: unknown }).url === 'function') {
+      const result = (value as { url: () => unknown }).url();
+      if (typeof result === 'string' && (result.startsWith('http') || result.startsWith('data:'))) {
+        return result;
+      }
+    }
+    // FileOutput.toString() returns the URL string directly
     const str = String(value);
     if (str.startsWith('http') || str.startsWith('data:')) return str;
   }
@@ -60,6 +70,17 @@ function extractReplicateUrl(value: unknown): string | null {
 
 type GenerationResult = { url: string } | { error: string };
 
+/**
+ * Vercel serverless: POST /api/generate-audio
+ * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
+ * Returns: { url: string } | { error: string }
+ *
+ * Backend selection (first match wins):
+ *   1. REPLICATE_API_TOKEN   — Stability AI Stable Audio 2.5 via Replicate (recommended)
+ *   2. HUGGINGFACE_API_TOKEN — Meta MusicGen via HuggingFace Inference API (fallback)
+ *
+ * Set at least one token in Vercel: Project → Settings → Environment Variables.
+ */
 export const config = { maxDuration: 300 };
 
 const CORS_HEADERS: Record<string, string> = {
@@ -211,6 +232,37 @@ async function handleRequest(request: Request): Promise<Response> {
   // Replicate preferred
   if (replicateToken) {
     let output: unknown;
+  // Replicate backend (recommended — Stability AI Stable Audio 2.5)
+  // Note: model_version is a MusicGen-specific parameter and is not used by Stable Audio 2.5.
+  if (replicateToken) {
+    let output: unknown;
+    try {
+      const replicate = new Replicate({ auth: replicateToken });
+      output = await replicate.run(STABLE_AUDIO_REPLICATE_MODEL, {
+        input: { prompt, duration },
+        signal: request.signal,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return jsonResponse({ error: `Generation failed: ${message}` }, 502);
+    }
+
+    // Replicate may return a plain string, an array of URLs, or a FileOutput object.
+    // extractReplicateUrl handles all three forms.
+    const rawUrl = Array.isArray(output)
+      ? extractReplicateUrl(output[0])
+      : extractReplicateUrl(output);
+
+    if (!rawUrl) {
+      return jsonResponse({ error: 'Model did not return an audio URL' }, 502);
+    }
+
+    return jsonResponse({ url: rawUrl }, 200);
+  }
+
+  // HuggingFace backend (fallback when REPLICATE_API_TOKEN is not set)
+  if (hfToken) {
+    let result: GenerationResult;
     try {
       const replicate = new Replicate({ auth: replicateToken });
       output = await replicate.run(MUSICGEN_REPLICATE_MODEL, {
@@ -245,4 +297,10 @@ async function handleRequest(request: Request): Promise<Response> {
   const hf = await generateWithHuggingFace(hfToken!, prompt, duration, model_version, request.signal);
   if ('error' in hf) return jsonResponse({ error: `Generation failed: ${hf.error}` }, 502);
   return jsonResponse({ url: hf.url }, 200);
+}
+    if ('error' in result) {
+      return jsonResponse({ error: `Generation failed: ${result.error}` }, 502);
+    }
+    return jsonResponse({ url: result.url }, 200);
+  }
 }
