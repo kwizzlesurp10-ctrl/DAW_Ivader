@@ -80,7 +80,7 @@ jobs:
             console.log(`Default branch: ${defaultBranch}`);
             console.log(`Dry run: ${dryRun}\n`);
 
-            let deleted = 0;
+            let cleaned = 0;
             let skipped = 0;
 
             for (const branch of branches) {
@@ -122,9 +122,9 @@ jobs:
                   console.log(`FAILED to delete: ${name} — ${error.message}`);
                 }
               }
-              deleted++;
+              cleaned++;
             }
 
             console.log(`\n--- Summary ---`);
             console.log(`Branches skipped: ${skipped}`);
-            console.log(`Branches ${dryRun ? 'that would be' : ''} deleted: ${deleted}`);
+            console.log(`Stale branches ${dryRun ? 'found (dry run)' : 'deleted'}: ${cleaned}`);
