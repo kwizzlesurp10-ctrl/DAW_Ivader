@@ -32,8 +32,8 @@ npm ci
 
 # 2. Environment (required for Generate / text-to-audio)
 cp .env.example .env.local
-# Edit .env.local: set HUGGINGFACE_API_TOKEN=your_token  (recommended)
-# — OR — set REPLICATE_API_TOKEN=your_token  (fallback)
+# Edit .env.local: set REPLICATE_API_TOKEN=your_token  (recommended)
+# — OR — set HUGGINGFACE_API_TOKEN=your_token  (fallback)
 # (Optional: OPEN_ROUTER_API_KEY for AI song structure)
 
 # 3. Verify
@@ -61,31 +61,15 @@ npx vercel login
 npx vercel --prod
 ```
 
-Set **`HUGGINGFACE_API_TOKEN`** (recommended) or **`REPLICATE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
+Set **`REPLICATE_API_TOKEN`** (recommended) or **`HUGGINGFACE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
 
 ---
 
 ## Generate audio setup
 
-The **Generate** button uses Meta MusicGen via **HuggingFace** (recommended) or **Replicate** (fallback). The backend is selected automatically based on which token is configured — HuggingFace takes priority when both are set.
+The **Generate** button uses Meta MusicGen via **Replicate** (recommended) or **HuggingFace** (fallback). The backend is selected automatically based on which token is configured — **Replicate takes priority when both are set.**
 
-### Option A: HuggingFace Inference API (recommended)
-
-1. **Get a HuggingFace token**  
-   Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), sign in, and create a token with Inference API access.
-
-2. **Local**  
-   In `.env.local` add:
-   ```bash
-   HUGGINGFACE_API_TOKEN=your_token
-   ```
-
-3. **Vercel (production)**  
-   In the Vercel project: **Settings → Environment Variables** add **`HUGGINGFACE_API_TOKEN`** with your token, then redeploy.
-
-### Option B: Replicate (fallback)
-
-Used only when `HUGGINGFACE_API_TOKEN` is **not** set.
+### Option A: Replicate (recommended)
 
 1. **Get a Replicate token**  
    Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens), sign in, and create an API token.
@@ -101,12 +85,28 @@ Used only when `HUGGINGFACE_API_TOKEN` is **not** set.
 3. **Vercel (production)**  
    In the Vercel project: **Settings → Environment Variables** add **`REPLICATE_API_TOKEN`** with your token, then redeploy.
 
+### Option B: HuggingFace Inference API (fallback)
+
+Used only when `REPLICATE_API_TOKEN` is **not** set.
+
+1. **Get a HuggingFace token**  
+   Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), sign in, and create a token with Inference API access.
+
+2. **Local**  
+   In `.env.local` add:
+   ```bash
+   HUGGINGFACE_API_TOKEN=your_token
+   ```
+
+3. **Vercel (production)**  
+   In the Vercel project: **Settings → Environment Variables** add **`HUGGINGFACE_API_TOKEN`** with your token, then redeploy.
+
 ---
 
 ## Run locally (dev)
 
 1. **Install:** `npm install`
-2. **Env:** Set `HUGGINGFACE_API_TOKEN` (recommended) or `REPLICATE_API_TOKEN` in `.env.local` for Generate.
-   - HuggingFace: Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+2. **Env:** Set `REPLICATE_API_TOKEN` (recommended) or `HUGGINGFACE_API_TOKEN` in `.env.local` for Generate.
    - Replicate: Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
+   - HuggingFace: Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
 3. **Run:** For Generate to work locally, use **`npm run dev:full`** (or `vercel dev`). Plain `npm run dev` only serves the frontend and does not expose `/api/generate-audio`. Otherwise use the deployed app.
