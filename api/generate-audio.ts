@@ -265,7 +265,13 @@ async function handleRequest(request: Request): Promise<Response> {
   }
 
   // HuggingFace backend (fallback when REPLICATE_API_TOKEN is not set)
-  const hf = await generateWithHuggingFace(hfToken!, prompt, duration, model_version, request.signal);
+  let hf: GenerationResult;
+  try {
+    hf = await generateWithHuggingFace(hfToken!, prompt, duration, model_version, request.signal);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return jsonResponse({ error: `Generation failed: ${message}` }, 502);
+  }
   if ('error' in hf) return jsonResponse({ error: `Generation failed: ${hf.error}` }, 502);
   return jsonResponse({ url: hf.url }, 200);
 }
