@@ -35,7 +35,7 @@ describe('generateAudioSchema', () => {
     it('clamps duration above max to GENERATE_AUDIO_DURATION_MAX', () => {
       const result = generateAudioRequestSchema.safeParse({
         prompt: 'x',
-        duration: 100,
+        duration: 200,
       });
       expect(result.success).toBe(true);
       if (result.success) expect(result.data.duration).toBe(GENERATE_AUDIO_DURATION_MAX);
@@ -73,46 +73,19 @@ describe('generateAudioSchema', () => {
       if (result.success) expect(result.data.prompt).toHaveLength(GENERATE_AUDIO_PROMPT_MAX_LENGTH);
     });
 
-    it('accepts valid model_version large', () => {
+    it('accepts valid model_version stable-audio-2.5', () => {
       const result = generateAudioRequestSchema.safeParse({
         prompt: 'test',
-        model_version: 'large',
+        model_version: 'stable-audio-2.5',
       });
       expect(result.success).toBe(true);
-      if (result.success) expect(result.data.model_version).toBe('large');
+      if (result.success) expect(result.data.model_version).toBe('stable-audio-2.5');
     });
 
-    it('accepts valid model_version stereo-large', () => {
-      const result = generateAudioRequestSchema.safeParse({
-        prompt: 'test',
-        model_version: 'stereo-large',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) expect(result.data.model_version).toBe('stereo-large');
-    });
-
-    it('accepts valid model_version melody-large', () => {
-      const result = generateAudioRequestSchema.safeParse({
-        prompt: 'test',
-        model_version: 'melody-large',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) expect(result.data.model_version).toBe('melody-large');
-    });
-
-    it('accepts valid model_version stereo-melody-large', () => {
-      const result = generateAudioRequestSchema.safeParse({
-        prompt: 'test',
-        model_version: 'stereo-melody-large',
-      });
-      expect(result.success).toBe(true);
-      if (result.success) expect(result.data.model_version).toBe('stereo-melody-large');
-    });
-
-    it('defaults to large model when model_version omitted', () => {
+    it('defaults to stable-audio-2.5 model when model_version omitted', () => {
       const result = generateAudioRequestSchema.safeParse({ prompt: 'test' });
       expect(result.success).toBe(true);
-      if (result.success) expect(result.data.model_version).toBe('large');
+      if (result.success) expect(result.data.model_version).toBe('stable-audio-2.5');
     });
 
     it('rejects invalid model_version', () => {
@@ -162,7 +135,7 @@ describe('generateAudioSchema', () => {
       if (result.ok) {
         expect(result.data.prompt).toBe('test');
         expect(result.data.duration).toBe(5);
-        expect(result.data.model_version).toBe('large');
+        expect(result.data.model_version).toBe('stable-audio-2.5');
       }
     });
 
@@ -170,11 +143,11 @@ describe('generateAudioSchema', () => {
       const result = parseGenerateAudioRequest({
         prompt: 'test',
         duration: 5,
-        model_version: 'stereo-large',
+        model_version: 'stable-audio-2.5',
       });
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.data.model_version).toBe('stereo-large');
+        expect(result.data.model_version).toBe('stable-audio-2.5');
       }
     });
 

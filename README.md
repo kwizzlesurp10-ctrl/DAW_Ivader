@@ -15,7 +15,7 @@ View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYq
 - **Sequencer**: 8/16/32-step grid, click steps to add/remove notes, per-track mute/solo
 - **Tracks**: Add, remove, duplicate, reorder; synth/bass/drums + **audio** (generated clips); per-track volume, pan, ADSR, filter, waveform
 - **Playback**: Play / Pause / Stop, BPM 1–999, swing 0–100%, optional metronome, master volume
-- **Generate (text-to-audio)**: Type a description and press **Generate**. Uses **Meta MusicGen** (open-source) via Replicate to create an audio clip and adds it as a track; plays from the start of each loop.
+- **Generate (text-to-audio)**: Type a description and press **Generate**. Uses **Stable Audio 2.5** via Replicate to create an audio clip and adds it as a track; plays from the start of each loop.
 - **Persistence**: Save/load in browser (localStorage), export/import JSON
 - **Undo/Redo**: Full history for all song edits
 - **Keyboard**: Space = play/pause, S = stop
@@ -65,7 +65,7 @@ Set **`REPLICATE_API_TOKEN`** in Vercel project Settings → Environment Variabl
 
 ## Generate audio setup (Replicate)
 
-The **Generate** button uses Meta MusicGen via Replicate. To enable it:
+The **Generate** button uses Stable Audio 2.5 via Replicate. To enable it:
 
 1. **Get a Replicate token**  
    Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens), sign in, and create an API token.

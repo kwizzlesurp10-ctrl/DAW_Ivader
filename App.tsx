@@ -143,8 +143,8 @@ const App: React.FC = () => {
     setIsGenerating(true);
     handleStop();
 
-    // Use stereo-melody-large model for premium stereo output with melody support
-    const result = await generateAudioFromText(prompt, 8, 'stereo-melody-large');
+    // Use Stable Audio 2.5 for high-fidelity 44.1kHz stereo generation
+    const result = await generateAudioFromText(prompt, 15);
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);

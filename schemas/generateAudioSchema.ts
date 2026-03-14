@@ -1,30 +1,23 @@
 import { z } from 'zod';
 
-/** Valid duration range for MusicGen (seconds). */
+/** Valid duration range for Stable Audio (seconds). */
 export const GENERATE_AUDIO_DURATION_MIN = 1;
-export const GENERATE_AUDIO_DURATION_MAX = 30;
-export const GENERATE_AUDIO_DURATION_DEFAULT = 8;
+export const GENERATE_AUDIO_DURATION_MAX = 180;
+export const GENERATE_AUDIO_DURATION_DEFAULT = 15;
 
 /** Max prompt length to prevent abuse. */
 export const GENERATE_AUDIO_PROMPT_MAX_LENGTH = 2000;
 
 /**
- * Available MusicGen model versions on Replicate.
- * - large: 3.3B parameters, mono output (default)
- * - stereo-large: 3.3B parameters, stereo output (premium)
- * - melody-large: 3.3B parameters, supports melody conditioning (premium)
- * - stereo-melody-large: 3.3B parameters, stereo + melody conditioning (premium)
+ * Available Stable Audio model versions on Replicate.
  */
-export const MUSICGEN_MODEL_VERSIONS = [
-  'large',
-  'stereo-large',
-  'melody-large',
-  'stereo-melody-large',
+export const STABLE_AUDIO_MODEL_VERSIONS = [
+  'stable-audio-2.5',
 ] as const;
 
-export type MusicGenModelVersion = (typeof MUSICGEN_MODEL_VERSIONS)[number];
+export type StableAudioModelVersion = (typeof STABLE_AUDIO_MODEL_VERSIONS)[number];
 
-export const MUSICGEN_MODEL_VERSION_DEFAULT: MusicGenModelVersion = 'large';
+export const STABLE_AUDIO_MODEL_VERSION_DEFAULT: StableAudioModelVersion = 'stable-audio-2.5';
 
 /**
  * Request body for POST /api/generate-audio.
@@ -48,9 +41,9 @@ export const generateAudioRequestSchema = z.object({
       Math.max(GENERATE_AUDIO_DURATION_MIN, Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(v)))
     ),
   model_version: z
-    .enum(MUSICGEN_MODEL_VERSIONS)
+    .enum(STABLE_AUDIO_MODEL_VERSIONS)
     .optional()
-    .default(MUSICGEN_MODEL_VERSION_DEFAULT),
+    .default(STABLE_AUDIO_MODEL_VERSION_DEFAULT),
 });
 
 export type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;

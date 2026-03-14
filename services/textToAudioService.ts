@@ -4,9 +4,9 @@ import {
   generateAudioResponseSchema,
   type GenerateAudioRequest,
   type GenerateAudioSuccess,
-  type MusicGenModelVersion,
+  type StableAudioModelVersion,
   GENERATE_AUDIO_DURATION_DEFAULT,
-  MUSICGEN_MODEL_VERSION_DEFAULT,
+  STABLE_AUDIO_MODEL_VERSION_DEFAULT,
 } from '../schemas/generateAudioSchema';
 
 /** Client-side result type for successful generation. */
@@ -16,18 +16,18 @@ export type GenerateAudioResult = GenerateAudioSuccess;
 const FETCH_TIMEOUT_MS = 90_000;
 
 /**
- * Call the app's serverless API to generate audio from text (MusicGen).
+ * Call the app's serverless API to generate audio from text (Stable Audio).
  * In production the API runs on the same origin; in dev use Vercel dev or full URL.
  *
  * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
- * @param durationSeconds - Clip length 1–30 seconds. Default 8.
- * @param modelVersion - MusicGen model to use: 'large' (default), 'stereo-large', 'melody-large', or 'stereo-melody-large'.
+ * @param durationSeconds - Clip length in seconds. Default 15.
+ * @param modelVersion - Stable Audio model to use: 'stable-audio-2.5' (default).
  * @returns Result with { url } on success, or Error on failure.
  */
 export async function generateAudioFromText(
   prompt: string,
   durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT,
-  modelVersion: MusicGenModelVersion = MUSICGEN_MODEL_VERSION_DEFAULT
+  modelVersion: StableAudioModelVersion = STABLE_AUDIO_MODEL_VERSION_DEFAULT
 ): Promise<Result<GenerateAudioResult, Error>> {
   const parseResult = generateAudioRequestSchema.safeParse({
     prompt: prompt.trim(),

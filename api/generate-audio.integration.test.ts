@@ -145,20 +145,20 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ prompt: 'test', duration: 8 }),
+          input: expect.objectContaining({ prompt: 'test', duration: 15 }),
         })
       );
     });
 
-    it('clamps duration above 30 to 30', async () => {
+    it('clamps duration above 180 to 180', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
 
-      await post({ prompt: 'test', duration: 100 });
+      await post({ prompt: 'test', duration: 200 });
 
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ duration: 30 }),
+          input: expect.objectContaining({ duration: 180 }),
         })
       );
     });

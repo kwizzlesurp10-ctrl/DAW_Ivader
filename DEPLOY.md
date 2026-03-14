@@ -1,6 +1,6 @@
 # Deploy DOOM DAW to Vercel
 
-**Deployment uses real audio only:** the audio engine and generate-audio API use the real Web Audio API and Replicate (MusicGen). No mock or simulation modes are used in production; they are disabled for deployment.
+**Deployment uses real audio only:** the audio engine and generate-audio API use the real Web Audio API and Replicate (Stable Audio 2.5). No mock or simulation modes are used in production; they are disabled for deployment.
 
 ## Quick Deploy
 

@@ -1,16 +1,14 @@
 import Replicate from 'replicate';
 import { parseGenerateAudioRequest } from '../schemas/generateAudioSchema';
 
-/** Meta MusicGen model on Replicate. */
-const MUSICGEN_MODEL =
-  'meta/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38';
+/** Stability AI Stable Audio 2.5 model on Replicate. */
+const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 
 /**
  * Vercel serverless: POST /api/generate-audio
  * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
  * Returns: { url: string } | { error: string }
- * Uses Meta MusicGen via Replicate. Set REPLICATE_API_TOKEN in Vercel env.
- * Supports premium models: stereo-large, melody-large, stereo-melody-large.
+ * Uses Stability AI Stable Audio 2.5 via Replicate. Set REPLICATE_API_TOKEN in Vercel env.
  */
 export const config = { maxDuration: 120 };
 
@@ -78,8 +76,8 @@ async function handleRequest(request: Request): Promise<Response> {
   let output: unknown;
   try {
     const replicate = new Replicate({ auth: token });
-    output = await replicate.run(MUSICGEN_MODEL, {
-      input: { prompt, duration, model_version },
+    output = await replicate.run(STABLE_AUDIO_MODEL, {
+      input: { prompt, duration },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

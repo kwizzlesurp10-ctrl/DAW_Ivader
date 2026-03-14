@@ -1,0 +1,251 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5] [cursor=pointer]:
+          - generic [ref=e6]:
+            - img [ref=e7]
+            - img [ref=e11]
+          - generic [ref=e13]:
+            - text: AudioForge
+            - generic [ref=e14]: AI Music Generation
+        - navigation [ref=e15]:
+          - link "GitHub" [ref=e16] [cursor=pointer]:
+            - /url: https://github.com
+            - img [ref=e17]
+            - generic [ref=e20]: GitHub
+          - generic [ref=e22]: Online
+    - main [ref=e24]:
+      - generic [ref=e25]:
+        - generic [ref=e26]: 🎵 Powered by Open-Source AI
+        - heading "AudioForge" [level=1] [ref=e27]
+        - paragraph [ref=e28]: Turn your imagination into sound. Describe it, and we'll compose it.
+        - generic [ref=e29]:
+          - generic [ref=e32]: Instrumental
+          - generic [ref=e36]: Vocals
+          - generic [ref=e40]: Mastering
+      - generic [ref=e41]:
+        - generic [ref=e43]:
+          - heading "Compose Something New" [level=2] [ref=e46]
+          - generic [ref=e47]:
+            - generic [ref=e48]:
+              - generic [ref=e49]:
+                - generic [ref=e50]:
+                  - generic [ref=e51]: 🎼
+                  - text: Describe your music
+                - button "Enhance" [disabled]:
+                  - img
+                  - text: Enhance
+              - textbox "🎼 Describe your music" [ref=e52]:
+                - /placeholder: "Try: 'A dreamy lo-fi hip-hop beat with vinyl crackle and soft piano melodies' or 'Epic orchestral soundtrack with soaring strings and thunderous percussion'"
+              - paragraph [ref=e53]: "💡 Tip: Be specific about instruments, mood, tempo, and style for best results"
+              - button "Prompt Agent Converts your description into MusicGen-ready format" [ref=e55] [cursor=pointer]:
+                - generic [ref=e56]:
+                  - img [ref=e57]
+                  - generic [ref=e60]: Prompt Agent
+                  - generic [ref=e61]: Converts your description into MusicGen-ready format
+                - img [ref=e62]
+            - generic [ref=e64]:
+              - generic [ref=e65]:
+                - img [ref=e66]
+                - generic [ref=e68]: "Try these creative prompts:"
+              - generic [ref=e69]:
+                - button "🌙 Dreamy Lo-Fi" [ref=e70] [cursor=pointer]:
+                  - generic [ref=e71]: 🌙
+                  - generic [ref=e72]: Dreamy Lo-Fi
+                - button "⚡ Epic Orchestral" [ref=e73] [cursor=pointer]:
+                  - generic [ref=e74]: ⚡
+                  - generic [ref=e75]: Epic Orchestral
+                - button "🎸 Indie Rock" [ref=e76] [cursor=pointer]:
+                  - generic [ref=e77]: 🎸
+                  - generic [ref=e78]: Indie Rock
+                - button "🌊 Ambient Chill" [ref=e79] [cursor=pointer]:
+                  - generic [ref=e80]: 🌊
+                  - generic [ref=e81]: Ambient Chill
+                - button "🔥 Trap Banger" [ref=e82] [cursor=pointer]:
+                  - generic [ref=e83]: 🔥
+                  - generic [ref=e84]: Trap Banger
+                - button "🎹 Jazz Lounge" [ref=e85] [cursor=pointer]:
+                  - generic [ref=e86]: 🎹
+                  - generic [ref=e87]: Jazz Lounge
+            - generic [ref=e88]:
+              - generic [ref=e89]:
+                - generic [ref=e90]: 🎤
+                - text: Lyrics (optional)
+              - textbox "🎤 Lyrics (optional)" [ref=e91]:
+                - /placeholder: "Add your lyrics here and we'll bring them to life with AI vocals...  Verse 1: Walking through the city lights Everything feels so right..."
+              - paragraph [ref=e92]: "✨ Pro tip: Structure your lyrics with verses, chorus, and bridge for better results"
+            - generic [ref=e93]:
+              - button "Generate Music" [ref=e94] [cursor=pointer]:
+                - generic [ref=e96]:
+                  - img [ref=e97]
+                  - text: Generate Music
+              - button "More Options" [ref=e99] [cursor=pointer]
+        - generic [ref=e101]:
+          - generic [ref=e102]:
+            - heading "Your Creations" [level=2] [ref=e104]
+            - generic [ref=e106]: 9 tracks
+          - generic [ref=e107]:
+            - generic [ref=e110]:
+              - generic [ref=e111]:
+                - generic [ref=e112]:
+                  - img [ref=e114]
+                  - generic [ref=e117]: Completed
+                  - generic [ref=e118]: 5 days ago
+                - paragraph [ref=e119]: Epic orchestral soundtrack with soaring strings, thunderous percussion, and heroic brass fanfares
+                - paragraph [ref=e120]: ⚡ Processed in 5.2s
+              - generic [ref=e123]:
+                - button "Play" [ref=e124] [cursor=pointer]:
+                  - img [ref=e125]
+                - generic [ref=e127]:
+                  - generic "Seek" [ref=e128] [cursor=pointer]:
+                    - slider [ref=e131]
+                  - generic [ref=e132]:
+                    - generic [ref=e133]: 0:00
+                    - generic [ref=e134]: 0:01
+                - generic [ref=e135]:
+                  - button "Mute" [ref=e136] [cursor=pointer]:
+                    - img [ref=e137]
+                  - generic "Volume" [ref=e141]:
+                    - slider [ref=e145]
+            - generic [ref=e149]:
+              - generic [ref=e150]:
+                - img [ref=e152]
+                - generic [ref=e154]: Queued
+                - generic [ref=e155]: 10 days ago
+              - paragraph [ref=e156]: test
+              - generic [ref=e160]:
+                - generic [ref=e161]: Initializing
+                - generic [ref=e162]: 0%
+            - generic [ref=e166]:
+              - generic [ref=e167]:
+                - img [ref=e169]
+                - generic [ref=e171]: Queued
+                - generic [ref=e172]: 10 days ago
+              - paragraph [ref=e173]: test
+              - generic [ref=e177]:
+                - generic [ref=e178]: Initializing
+                - generic [ref=e179]: 0%
+            - generic [ref=e183]:
+              - generic [ref=e184]:
+                - img [ref=e186]
+                - generic [ref=e188]: Queued
+                - generic [ref=e189]: 10 days ago
+              - paragraph [ref=e190]: test
+              - generic [ref=e194]:
+                - generic [ref=e195]: Initializing
+                - generic [ref=e196]: 0%
+            - generic [ref=e200]:
+              - generic [ref=e201]:
+                - img [ref=e203]
+                - generic [ref=e205]: Generating...
+                - generic [ref=e206]: 26 days ago
+              - paragraph [ref=e207]: Calm acoustic guitar, 60 BPM
+              - generic [ref=e211]:
+                - generic [ref=e212]: Initializing
+                - generic [ref=e213]: 0%
+            - generic [ref=e217]:
+              - generic [ref=e218]:
+                - img [ref=e220]
+                - generic [ref=e222]: Generating...
+                - generic [ref=e223]: 26 days ago
+              - paragraph [ref=e224]: Calm acoustic guitar, 60 BPM
+              - generic [ref=e228]:
+                - generic [ref=e229]: Initializing
+                - generic [ref=e230]: 0%
+            - generic [ref=e233]:
+              - generic [ref=e234]:
+                - generic [ref=e235]:
+                  - img [ref=e237]
+                  - generic [ref=e240]: Completed
+                  - generic [ref=e241]: 27 days ago
+                - paragraph [ref=e242]: Hiphop instrumental. high fidelity, high quality, masterpiece, professional recording, stereo, 4k audio, studio quality.
+                - paragraph [ref=e243]: ⚡ Processed in 2.0s
+              - generic [ref=e246]:
+                - button "Play" [ref=e247] [cursor=pointer]:
+                  - img [ref=e248]
+                - generic [ref=e250]:
+                  - generic "Seek" [ref=e251] [cursor=pointer]:
+                    - slider [ref=e254]
+                  - generic [ref=e255]:
+                    - generic [ref=e256]: 0:00
+                    - generic [ref=e257]: 0:01
+                - generic [ref=e258]:
+                  - button "Mute" [ref=e259] [cursor=pointer]:
+                    - img [ref=e260]
+                  - generic "Volume" [ref=e264]:
+                    - slider [ref=e268]
+            - generic [ref=e271]:
+              - generic [ref=e272]:
+                - generic [ref=e273]:
+                  - img [ref=e275]
+                  - generic [ref=e278]: Completed
+                  - generic [ref=e279]: 27 days ago
+                - paragraph [ref=e280]: A dreamy lo-fi hip-hop beat with vinyl crackle, soft piano melodies, and gentle rain sounds in the background. hip-hop, piano high fidelity, high quality, masterpiece, professional recording, stereo, 4k audio, studio quality
+                - generic [ref=e282]: 🎸 hip-hop
+                - paragraph [ref=e283]: ⚡ Processed in 2.0s
+              - generic [ref=e286]:
+                - button "Play" [ref=e287] [cursor=pointer]:
+                  - img [ref=e288]
+                - generic [ref=e290]:
+                  - generic "Seek" [ref=e291] [cursor=pointer]:
+                    - slider [ref=e294]
+                  - generic [ref=e295]:
+                    - generic [ref=e296]: 0:00
+                    - generic [ref=e297]: 0:01
+                - generic [ref=e298]:
+                  - button "Mute" [ref=e299] [cursor=pointer]:
+                    - img [ref=e300]
+                  - generic "Volume" [ref=e304]:
+                    - slider [ref=e308]
+            - generic [ref=e311]:
+              - generic [ref=e312]:
+                - generic [ref=e313]:
+                  - img [ref=e315]
+                  - generic [ref=e318]: Completed
+                  - generic [ref=e319]: 27 days ago
+                - paragraph [ref=e320]: A dreamy lo-fi hip-hop beat with vinyl crackle, soft piano melodies, and gentle rain sounds in the background
+                - generic [ref=e322]: 🎸 hip-hop
+                - paragraph [ref=e323]: ⚡ Processed in 12.9s
+              - generic [ref=e326]:
+                - button "Play" [ref=e327] [cursor=pointer]:
+                  - img [ref=e328]
+                - generic [ref=e330]:
+                  - generic "Seek" [ref=e331] [cursor=pointer]:
+                    - slider [ref=e334]
+                  - generic [ref=e335]:
+                    - generic [ref=e336]: 0:00
+                    - generic [ref=e337]: 0:01
+                - generic [ref=e338]:
+                  - button "Mute" [ref=e339] [cursor=pointer]:
+                    - img [ref=e340]
+                  - generic "Volume" [ref=e344]:
+                    - slider [ref=e348]
+      - generic [ref=e350]:
+        - generic [ref=e351]:
+          - generic [ref=e352]:
+            - img [ref=e355]
+            - generic [ref=e359]: "9"
+            - generic [ref=e360]: Total Generations
+          - generic [ref=e361]:
+            - img [ref=e364]
+            - generic [ref=e366]: "4"
+            - generic [ref=e367]: Completed Tracks
+          - generic [ref=e368]:
+            - img [ref=e371]
+            - generic [ref=e374]: 22s
+            - generic [ref=e375]: Processing Time
+        - generic [ref=e376]:
+          - paragraph [ref=e377]: Built with ❤️ using open-source AI models
+          - generic [ref=e378]:
+            - generic [ref=e379]: MusicGen
+            - generic [ref=e381]: RVC
+            - generic [ref=e383]: Demucs
+    - button "Show keyboard shortcuts" [ref=e385] [cursor=pointer]:
+      - img [ref=e386]
+  - region "Notifications alt+T"
+  - alert [ref=e388]
+```

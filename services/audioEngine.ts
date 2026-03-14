@@ -60,6 +60,11 @@ class AudioEngine {
     if (this.ctx.state === 'suspended') {
       await this.ctx.resume();
     }
+    
+    // If song data was set before init, preload it now
+    if (this.songData) {
+      this.preloadAudioTracks(this.songData);
+    }
   }
 
   public setSongData(data: SongData): void {
@@ -73,10 +78,13 @@ class AudioEngine {
       if (track.type === 'audio' && track.audioUrl && !audioBufferCache.has(track.audioUrl)) {
         try {
           const res = await fetch(track.audioUrl);
+          if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
           const arrayBuffer = await res.arrayBuffer();
           const buffer = await this.ctx.decodeAudioData(arrayBuffer);
           audioBufferCache.set(track.audioUrl, buffer);
-        } catch {
+          console.log(`[AudioEngine] Preloaded audio track: ${track.audioUrl}`);
+        } catch (err) {
+          console.error(`[AudioEngine] Failed to preload audio track: ${track.audioUrl}`, err);
           // Decode or fetch failed; playback will no-op
         }
       }

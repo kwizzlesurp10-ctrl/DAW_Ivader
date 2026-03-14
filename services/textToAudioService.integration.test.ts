@@ -56,12 +56,12 @@ describe('textToAudioService (communication layer)', () => {
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'dark bass', duration: 8, model_version: 'large' }),
+          body: JSON.stringify({ prompt: 'dark bass', duration: 15, model_version: 'stable-audio-2.5' }),
         })
       );
     });
 
-    it('passes default duration 8 when not provided', async () => {
+    it('passes default duration 15 when not provided', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -74,7 +74,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'large' }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5' }),
         })
       );
     });
@@ -87,12 +87,12 @@ describe('textToAudioService (communication layer)', () => {
         text: () => Promise.resolve(JSON.stringify({ url: 'https://x.com/a.wav' })),
       });
 
-      await generateAudioFromText('test', 15);
+      await generateAudioFromText('test', 30);
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'large' }),
+          body: JSON.stringify({ prompt: 'test', duration: 30, model_version: 'stable-audio-2.5' }),
         })
       );
     });
@@ -105,17 +105,17 @@ describe('textToAudioService (communication layer)', () => {
         text: () => Promise.resolve(JSON.stringify({ url: 'https://x.com/a.wav' })),
       });
 
-      await generateAudioFromText('test', 8, 'stereo-large');
+      await generateAudioFromText('test', 15, 'stable-audio-2.5');
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'stereo-large' }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5' }),
         })
       );
     });
 
-    it('defaults to large model when model_version not provided', async () => {
+    it('defaults to stable-audio-2.5 model when model_version not provided', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -128,7 +128,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'large' }),
+          body: JSON.stringify({ prompt: 'test', duration: 15, model_version: 'stable-audio-2.5' }),
         })
       );
     });
