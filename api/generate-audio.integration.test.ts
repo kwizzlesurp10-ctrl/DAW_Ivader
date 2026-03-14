@@ -215,6 +215,29 @@ describe('api/generate-audio (communication layer)', () => {
       const data = await res.json();
       expect(data.url).toBe('https://cdn.example.com/out.wav');
     });
+
+    it('returns 200 when Replicate returns FileOutput with url() method', async () => {
+      // Replicate JS SDK FileOutput objects expose a url() method
+      const mockFileOutput = { url: () => 'https://replicate.delivery/out.mp3' };
+      mockRun.mockResolvedValue(mockFileOutput);
+
+      const res = await post({ prompt: 'test' });
+
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.url).toBe('https://replicate.delivery/out.mp3');
+    });
+
+    it('calls stability-ai/stable-audio-2.5 model', async () => {
+      mockRun.mockResolvedValue('https://replicate.delivery/out.mp3');
+
+      await post({ prompt: 'chill beats' });
+
+      expect(mockRun).toHaveBeenCalledWith(
+        'stability-ai/stable-audio-2.5',
+        expect.any(Object)
+      );
+    });
   });
 
   describe('Replicate errors', () => {
@@ -499,18 +522,14 @@ describe('api/generate-audio — HuggingFace backend', () => {
       expect(data.url).toMatch(/^data:audio\/wav;base64,/);
     });
 
-    it('prefers HuggingFace when both tokens are set', async () => {
-      process.env.REPLICATE_API_TOKEN = 'rep-token';
+    it('prefers Replicate when both tokens are set', async () => {
       vi.resetModules();
+      process.env.REPLICATE_API_TOKEN = 'rep-token';
       process.env.HUGGINGFACE_API_TOKEN = 'hf-test-token';
       const mod = await import('./generate-audio');
       const h = mod.default;
 
-      const fakeWav = new Uint8Array([82, 73, 70, 70]);
-      const fetchMock = vi.fn().mockResolvedValue(
-        new Response(fakeWav, { status: 200, headers: { 'Content-Type': 'audio/wav' } })
-      );
-      vi.stubGlobal('fetch', fetchMock);
+      mockRun.mockResolvedValue('https://replicate.delivery/abc.wav');
 
       const res = await h(
         new Request('https://example.com/api/generate-audio', {
@@ -521,8 +540,8 @@ describe('api/generate-audio — HuggingFace backend', () => {
       );
 
       expect(res.status).toBe(200);
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('api-inference.huggingface.co'),
+      expect(mockRun).toHaveBeenCalledWith(
+        'stability-ai/stable-audio-2.5',
         expect.any(Object)
       );
     });
