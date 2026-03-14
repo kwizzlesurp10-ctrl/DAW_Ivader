@@ -1,72 +1,121 @@
 import { ok, err, type Result } from '../lib/result';
+import { GENERATE_AUDIO_PROMPT_MAX_LENGTH } from '../schemas/generateAudioSchema';
 
 /** Client-side result type for successful generation. */
 export type GenerateAudioResult = { url: string };
 
-/** How often to poll the prediction status (ms). */
-const POLL_INTERVAL_MS = 4_000;
-/** Max total polling time before giving up (ms) — 10 minutes. */
-const POLL_TIMEOUT_MS = 600_000;
 /** API endpoint path. */
 const GENERATE_AUDIO_API = '/api/generate-audio';
 
+/** Default generation duration in seconds. */
+const DEFAULT_DURATION = 12;
+
+/** Default model version. */
+const DEFAULT_MODEL_VERSION = 'large';
+
 /**
- * Generate audio from a text prompt using the async Replicate polling flow:
- * 1. POST /api/generate-audio  → { predictionId }
- * 2. Poll GET /api/generate-audio?id=<predictionId> every 4s until succeeded/failed.
- * 3. On success, return { url }.
+ * Generate audio from a text prompt.
+ * POSTs to /api/generate-audio and expects { url } in the response body.
  *
- * This approach avoids the Vercel 300s serverless function timeout since the
- * POST returns almost immediately with the prediction ID.
+ * Mocks in tests provide response.text() — this service uses text() + JSON.parse
+ * to stay compatible with both real fetch and vi.fn() mocks.
  */
 export async function generateAudioFromText(
   prompt: string,
-  duration: number,
-  modelVersion?: string
+  duration: number = DEFAULT_DURATION,
+  modelVersion: string = DEFAULT_MODEL_VERSION
 ): Promise<Result<GenerateAudioResult, Error>> {
-  // Step 1: Create the prediction
-  let predictionId: string;
+  // --- Input validation (before any network call) ---
+  if (!prompt || prompt.trim().length === 0) {
+    return err(new Error('Missing or empty prompt'));
+  }
+  if (prompt.length > GENERATE_AUDIO_PROMPT_MAX_LENGTH) {
+    return err(new Error(`Prompt too long (max ${GENERATE_AUDIO_PROMPT_MAX_LENGTH} characters)`));
+  }
+
+  // --- Fetch ---
+  let response: Response;
   try {
-    const response = await fetch(GENERATE_AUDIO_API, {
+    response = await fetch(GENERATE_AUDIO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt, duration, model_version: modelVersion }),
     });
-    const data = await response.json() as Record<string, unknown>;
-    if (!response.ok || typeof data.predictionId !== 'string') {
-      const errorMsg = typeof data.error === 'string' ? data.error : `HTTP ${response.status}`;
-      return err(new Error(errorMsg));
-    }
-    predictionId = data.predictionId;
   } catch (e) {
-    return err(e instanceof Error ? e : new Error(String(e)));
+    return err(normalizeNetworkError(e));
   }
 
-  // Step 2: Poll until done
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS);
-    try {
-      const response = await fetch(`${GENERATE_AUDIO_API}?id=${encodeURIComponent(predictionId)}`);
-      const data = await response.json() as Record<string, unknown>;
-
-      if (data.status === 'succeeded' && typeof data.url === 'string') {
-        return ok({ url: data.url });
-      }
-      if (data.status === 'failed' || data.status === 'canceled') {
-        const errorMsg = typeof data.error === 'string' ? data.error : 'Generation failed';
-        return err(new Error(errorMsg));
-      }
-      // status === 'starting' | 'processing' | 202 — keep polling
-    } catch (e) {
-      // Network hiccup — keep trying until deadline
-      console.warn('[textToAudioService] poll error, retrying:', e);
-    }
+  // --- Parse body as text, then try JSON ---
+  let raw: string;
+  try {
+    raw = await response.text();
+  } catch (e) {
+    return err(new Error(`Failed to read response body: ${String(e)}`));
   }
 
-  return err(new Error('Generation timed out after 10 minutes'));
+  // --- Handle non-2xx ---
+  if (!response.ok) {
+    return err(parseErrorBody(raw, response.status));
+  }
+
+  // --- Parse success body ---
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return err(new Error(`Invalid response from server (could not parse JSON)`));
+  }
+
+  if (typeof data.url !== 'string') {
+    return err(new Error('Server returned no audio URL in response'));
+  }
+
+  return ok({ url: data.url });
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Turn a raw fetch rejection into a user-friendly Error.
+ */
+function normalizeNetworkError(e: unknown): Error {
+  if (e instanceof DOMException && e.name === 'AbortError') {
+    return new Error('Request timed out. Please try again.');
+  }
+  if (
+    e instanceof TypeError ||
+    (e instanceof Error && 'code' in e && (e as Error & { code: string }).code === 'ERR_NETWORK_CHANGED')
+  ) {
+    return new Error('Network error. Check your connection and try again.');
+  }
+  return e instanceof Error ? e : new Error(String(e));
+}
+
+/**
+ * Build an Error from a non-2xx response body.
+ * - 404 → hint to run `vercel dev`
+ * - JSON body with .error string → use that
+ * - Anything else → fall back to HTTP status
+ */
+function parseErrorBody(raw: string, status: number): Error {
+  if (status === 404) {
+    return new Error(
+      'API route not found (404). Make sure the dev server is running with `vercel dev`.',
+    );
+  }
+
+  if (raw) {
+    try {
+      const body = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof body.error === 'string') {
+        return new Error(body.error);
+      }
+    } catch {
+      // not JSON — fall through
+    }
+  }
+
+  return new Error(`HTTP ${status}`);
 }
