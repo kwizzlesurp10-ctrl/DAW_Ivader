@@ -9,104 +9,83 @@ const MODELS: Record<string, string> = {
 
 /**
  * Vercel serverless: POST /api/generate-audio
- * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
- * Returns: { url: string } | { error: string }
- * Uses Stability AI Stable Audio 2.5 via Replicate. Set REPLICATE_API_TOKEN in Vercel env.
  */
-export const config = { maxDuration: 120 };
-
-const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+export const config = { 
+  maxDuration: 120 
 };
 
-function jsonResponse(
-  obj: { error?: string; url?: string },
-  status: number
-): Response {
-  return new Response(JSON.stringify(obj), {
-    status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-  });
-}
+export default async function handler(req: any, res: any) {
+  // Handle CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-export default async function handler(request: Request): Promise<Response> {
-  if (request == null || typeof request !== 'object' || typeof (request as Request).method !== 'string') {
-    return jsonResponse({ error: 'Invalid request' }, 500);
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
   }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    return await handleRequest(request);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[generate-audio]', message);
-    return jsonResponse({ error: `Server error: ${message}` }, 500);
-  }
-}
+    const token = process.env.REPLICATE_API_TOKEN;
+    if (!token?.trim()) {
+      console.error('[generate-audio] Missing REPLICATE_API_TOKEN');
+      return res.status(503).json({
+        error: 'REPLICATE_API_TOKEN is not set in Vercel environment variables.',
+      });
+    }
 
-async function handleRequest(request: Request): Promise<Response> {
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
-  }
-  if (request.method !== 'POST') {
-    return jsonResponse({ error: 'Method not allowed' }, 405);
-  }
+    const parseResult = parseGenerateAudioRequest(req.body);
+    if (!parseResult.ok) {
+      return res.status(400).json({ error: parseResult.error });
+    }
 
-  const token = process.env.REPLICATE_API_TOKEN;
-  if (!token?.trim()) {
-    return jsonResponse(
-      {
-        error:
-          'REPLICATE_API_TOKEN is not set. Add it in Vercel: Project → Settings → Environment Variables, then redeploy.',
-      },
-      503
-    );
-  }
+    const { prompt, duration, model_version, negative_prompt, steps, cfg_scale } = parseResult.data;
+    const modelIdentifier = MODELS[model_version];
 
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return jsonResponse({ error: 'Invalid JSON body' }, 400);
-  }
+    if (!modelIdentifier) {
+      return res.status(400).json({ error: `Invalid model version: ${model_version}` });
+    }
 
-  const parseResult = parseGenerateAudioRequest(rawBody);
-  if (!parseResult.ok) {
-    return jsonResponse({ error: parseResult.error }, 400);
-  }
-  const { prompt, duration, model_version, negative_prompt, steps, cfg_scale } = parseResult.data;
+    console.log(`[generate-audio] Starting generation with ${model_version}...`);
+    
+    let output: unknown;
+    try {
+      const replicate = new Replicate({ auth: token });
+      output = await replicate.run(modelIdentifier, {
+        input: { 
+          prompt, 
+          duration,
+          negative_prompt,
+          steps,
+          cfg_scale
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[generate-audio] Generation failed:', message);
+      return res.status(502).json({ error: `Generation failed: ${message}` });
+    }
 
-  const modelIdentifier = MODELS[model_version];
-  if (!modelIdentifier) {
-    return jsonResponse({ error: `Invalid model version: ${model_version}` }, 400);
-  }
-
-  let output: unknown;
-  try {
-    const replicate = new Replicate({ auth: token });
-    output = await replicate.run(modelIdentifier, {
-      input: { 
-        prompt, 
-        duration,
-        negative_prompt,
-        steps,
-        cfg_scale
-      },
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return jsonResponse({ error: `Generation failed: ${message}` }, 502);
-  }
-
-  const url =
-    typeof output === 'string'
+    const url = typeof output === 'string'
       ? output
       : Array.isArray(output)
         ? output[0]
-        : (output as { url?: string })?.url;
-  if (!url || typeof url !== 'string') {
-    return jsonResponse({ error: 'Model did not return an audio URL' }, 502);
-  }
+        : (output as any)?.url;
 
-  return jsonResponse({ url }, 200);
+    if (!url || typeof url !== 'string') {
+      console.error('[generate-audio] No URL returned from Replicate', output);
+      return res.status(502).json({ error: 'Model did not return an audio URL' });
+    }
+
+    console.log('[generate-audio] Success:', url);
+    return res.status(200).json({ url });
+
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[generate-audio] Fatal error:', message);
+    return res.status(500).json({ error: `Server error: ${message}` });
+  }
 }

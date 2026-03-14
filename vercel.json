@@ -15,12 +15,10 @@
       "destination": "/index.html"
     }
   ],
-  "functions": {
-    "api/*.ts": {
-      "maxDuration": 120
-    },
-    "api/**/*.test.ts": {
-      "exclude": true
+    "functions": {
+      "api/*.ts": {
+        "maxDuration": 120
+      }
     }
   }
-}
+  
