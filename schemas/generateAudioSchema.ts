@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-/** Valid duration range for Stable Audio 2.5 (seconds). */
-export const GENERATE_AUDIO_DURATION_MIN = 10;
-export const GENERATE_AUDIO_DURATION_MAX = 15;
-export const GENERATE_AUDIO_DURATION_DEFAULT = 12;
+/** Valid duration range for Stable Audio 2.5 (seconds). Min 1, Max 190, Default 30. */
+export const GENERATE_AUDIO_DURATION_MIN = 1;
+export const GENERATE_AUDIO_DURATION_MAX = 190;
+export const GENERATE_AUDIO_DURATION_DEFAULT = 30;
 
 /** Max prompt length to prevent abuse. */
 export const GENERATE_AUDIO_PROMPT_MAX_LENGTH = 2000;
