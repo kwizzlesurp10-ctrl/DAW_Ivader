@@ -75,7 +75,7 @@ async function handleRequest(request: Request): Promise<Response> {
 
   const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
   if (!replicateToken) {
-    return jsonResponse({ error: 'No audio backend configured. Set REPLICATE_API_TOKEN in Vercel → Settings → Environment Variables, then redeploy.' }, 503);
+    return jsonResponse({ error: 'No audio backend configured. Set REPLICATE_API_TOKEN in your environment variables.' }, 503);
   }
 
   const replicate = new Replicate({ auth: replicateToken });
