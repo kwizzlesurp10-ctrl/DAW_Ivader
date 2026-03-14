@@ -1,5 +1,10 @@
 import { ok, err, type Result } from '../lib/result';
-import { GENERATE_AUDIO_PROMPT_MAX_LENGTH } from '../schemas/generateAudioSchema';
+import {
+  GENERATE_AUDIO_PROMPT_MAX_LENGTH,
+  GENERATE_AUDIO_DURATION_MIN,
+  GENERATE_AUDIO_DURATION_MAX,
+  GENERATE_AUDIO_DURATION_DEFAULT,
+} from '../schemas/generateAudioSchema';
 
 /** Client-side result type for successful generation. */
 export type GenerateAudioResult = { url: string };
@@ -10,8 +15,6 @@ const POLL_INTERVAL_MS = 4_000;
 const POLL_TIMEOUT_MS = 600_000;
 /** API endpoint path. */
 const GENERATE_AUDIO_API = '/api/generate-audio';
-/** Default generation duration in seconds. */
-const DEFAULT_DURATION = 12;
 /** Default model version. */
 const DEFAULT_MODEL_VERSION = 'large';
 
@@ -25,7 +28,7 @@ const DEFAULT_MODEL_VERSION = 'large';
  */
 export async function generateAudioFromText(
   prompt: string,
-  duration: number = DEFAULT_DURATION,
+  duration: number = GENERATE_AUDIO_DURATION_DEFAULT,
   modelVersion: string = DEFAULT_MODEL_VERSION
 ): Promise<Result<GenerateAudioResult, Error>> {
 
@@ -37,13 +40,19 @@ export async function generateAudioFromText(
     return err(new Error(`Prompt too long (max ${GENERATE_AUDIO_PROMPT_MAX_LENGTH} characters)`));
   }
 
+  // Clamp duration to client-side valid range before sending
+  const clampedDuration = Math.max(
+    GENERATE_AUDIO_DURATION_MIN,
+    Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(duration))
+  );
+
   // --- Step 1: Create prediction ---
   let predictionId: string;
   try {
     const response = await fetch(GENERATE_AUDIO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, duration, model_version: modelVersion }),
+      body: JSON.stringify({ prompt, duration: clampedDuration, model_version: modelVersion }),
     });
     const raw = await response.text();
     if (!response.ok) {
