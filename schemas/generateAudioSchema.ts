@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Valid duration range for client-side generation (seconds). Min 10, Max 15, Default 12. */
+/** Valid duration range for generated audio loops (seconds). Min 10, Max 15, Default 12. */
 export const GENERATE_AUDIO_DURATION_MIN = 10;
 export const GENERATE_AUDIO_DURATION_MAX = 15;
 export const GENERATE_AUDIO_DURATION_DEFAULT = 12;
@@ -36,7 +36,7 @@ export const SUPPORTED_MODEL_VERSIONS = MUSICGEN_MODEL_VERSIONS;
  */
 export const generateAudioRequestSchema = z.object({
   prompt: z
-    .string()
+    .string({ error: 'Missing or empty prompt' })
     .transform((s) => s.trim())
     .pipe(
       z
