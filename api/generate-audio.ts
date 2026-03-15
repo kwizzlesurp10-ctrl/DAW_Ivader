@@ -1,36 +1,42 @@
 import Replicate from 'replicate';
-import { parseGenerateAudioRequest, type MusicGenModelVersion } from '../schemas/generateAudioSchema';
+import {
+  parseGenerateAudioRequest,
+  GENERATE_AUDIO_DURATION_MIN,
+  GENERATE_AUDIO_DURATION_MAX,
+  GENERATE_AUDIO_DURATION_DEFAULT,
+  GENERATE_AUDIO_PROMPT_MAX_LENGTH,
+} from '../schemas/generateAudioSchema';
 
-/** Meta MusicGen model on Replicate. */
-const MUSICGEN_REPLICATE_MODEL =
-  'meta/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38';
-
-/**
- * HuggingFace Inference API model IDs for each MusicGen variant.
- * See: https://huggingface.co/facebook
- */
-const HUGGINGFACE_MODEL_MAP: Record<MusicGenModelVersion, string> = {
-  'small': 'facebook/musicgen-small',
-  'large': 'facebook/musicgen-large',
-  'stereo-large': 'facebook/musicgen-stereo-large',
-  'melody-large': 'facebook/musicgen-melody-large',
-  'stereo-melody-large': 'facebook/musicgen-stereo-melody-large',
-};
-
-/** MusicGen generates ~50 audio tokens per second of output. */
-const MUSICGEN_TOKENS_PER_SECOND = 50;
+/** Stability AI Stable Audio 2.5 model on Replicate. */
+const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 
 /**
- * Vercel serverless: POST /api/generate-audio
- * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
- * Returns: { url: string } | { error: string }
- *
- * Backend selection (first match wins):
- *   1. HUGGINGFACE_API_TOKEN — Meta MusicGen via HuggingFace Inference API (returns data URL)
- *   2. REPLICATE_API_TOKEN   — Meta MusicGen via Replicate
- *
- * Set at least one token in Vercel: Project → Settings → Environment Variables.
+ * Extract a plain URL string from a Replicate output value.
+ * Handles: plain string, array of strings, FileOutput object with url() method,
+ * FileOutput.toString().
  */
+function extractUrl(value: unknown): string | null {
+  if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('data:'))) return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const u = extractUrl(item);
+      if (u) return u;
+    }
+    return null;
+  }
+  if (value && typeof value === 'object') {
+    // FileOutput with url() method
+    if (typeof (value as { url?: unknown }).url === 'function') {
+      const r = (value as { url: () => unknown }).url();
+      if (typeof r === 'string' && r.startsWith('http')) return r;
+    }
+    // FileOutput with toString()
+    const s = String(value);
+    if (s.startsWith('http') || s.startsWith('data:')) return s;
+  }
+  return null;
+}
+
 export const config = { maxDuration: 300 };
 
 const CORS_HEADERS: Record<string, string> = {
@@ -39,81 +45,23 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-function jsonResponse(
-  obj: { error?: string; url?: string },
-  status: number
-): Response {
+function jsonResponse(obj: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(obj), {
     status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
   });
 }
 
-/**
- * Generate audio using the HuggingFace Inference API.
- * Returns { url } with a base64 data URL on success, or { error } on failure.
- */
-export async function generateWithHuggingFace(
-  token: string,
-  prompt: string,
-  duration: number,
-  modelVersion: MusicGenModelVersion
-): Promise<{ url: string } | { error: string }> {
-  const model = HUGGINGFACE_MODEL_MAP[modelVersion];
-  const maxNewTokens = duration * MUSICGEN_TOKENS_PER_SECOND;
-
-  let res: Response;
-  try {
-    res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Wait-For-Model': 'true',
-      },
-      body: JSON.stringify({
-        inputs: prompt,
-        parameters: { max_new_tokens: maxNewTokens },
-      }),
-    });
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { error: `HuggingFace request failed: ${message}` };
-  }
-
-  if (!res.ok) {
-    let text = '';
-    try { text = await res.text(); } catch { /* ignore */ }
-    return {
-      error: `HuggingFace API error ${res.status}${text ? `: ${text.slice(0, 200)}` : ''}`,
-    };
-  }
-
-  let buffer: ArrayBuffer;
-  try {
-    buffer = await res.arrayBuffer();
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { error: `Failed to read HuggingFace response: ${message}` };
-  }
-
-  const base64 = Buffer.from(buffer).toString('base64');
-  const contentType = res.headers.get('content-type') || 'audio/wav';
-  const url = `data:${contentType};base64,${base64}`;
-
-  return { url };
-}
-
 export default async function handler(request: Request): Promise<Response> {
-  if (request == null || typeof request !== 'object' || typeof (request as Request).method !== 'string') {
+  if (!request || typeof request !== 'object') {
     return jsonResponse({ error: 'Invalid request' }, 500);
   }
   try {
     return await handleRequest(request);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
     console.error('[generate-audio]', message);
-    return jsonResponse({ error: `Server error: ${message}` }, 500);
+    return jsonResponse({ error: 'Invalid request' }, 500);
   }
 }
 
@@ -121,65 +69,45 @@ async function handleRequest(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
+
+  // Only POST is supported — single-shot generation
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const hfToken = process.env.HUGGINGFACE_API_TOKEN?.trim();
   const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
-
-  if (!hfToken && !replicateToken) {
-    return jsonResponse(
-      {
-        error:
-          'No audio backend configured. Set HUGGINGFACE_API_TOKEN (recommended) or REPLICATE_API_TOKEN in Vercel: Project → Settings → Environment Variables, then redeploy.',
-      },
-      503
-    );
+  if (!replicateToken) {
+    return jsonResponse({ error: 'No audio backend configured. Set REPLICATE_API_TOKEN in your environment variables.' }, 503);
   }
+
+  const replicate = new Replicate({ auth: replicateToken });
 
   let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return jsonResponse({ error: 'Invalid JSON body' }, 400);
-  }
+  try { rawBody = await request.json(); }
+  catch { return jsonResponse({ error: 'Invalid JSON body' }, 400); }
 
-  const parseResult = parseGenerateAudioRequest(rawBody);
-  if (!parseResult.ok) {
-    return jsonResponse({ error: parseResult.error }, 400);
-  }
-  const { prompt, duration, model_version } = parseResult.data;
+  const parsed = parseGenerateAudioRequest(rawBody);
+  if (!parsed.ok) return jsonResponse({ error: parsed.error }, 400);
 
-  // HuggingFace backend (preferred when token is available)
-  if (hfToken) {
-    const result = await generateWithHuggingFace(hfToken, prompt, duration, model_version);
-    if ('error' in result) {
-      return jsonResponse({ error: `Generation failed: ${result.error}` }, 502);
-    }
-    return jsonResponse({ url: result.url }, 200);
-  }
+  const { prompt, duration } = parsed.data;
+  console.log(`[generate-audio] running: prompt="${prompt}" duration=${duration}s`);
 
-  // Replicate backend (fallback)
+  // Single-shot: replicate.run() waits for the prediction to complete and returns output directly.
   let output: unknown;
   try {
-    const replicate = new Replicate({ auth: replicateToken! });
-    output = await replicate.run(MUSICGEN_REPLICATE_MODEL, {
-      input: { prompt, duration, model_version },
+    output = await replicate.run(STABLE_AUDIO_REPLICATE_MODEL, {
+      input: { prompt, duration },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.error('[generate-audio] generation failed:', message);
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
   }
 
-  const url =
-    typeof output === 'string'
-      ? output
-      : Array.isArray(output)
-        ? output[0]
-        : (output as { url?: string })?.url;
-  if (!url || typeof url !== 'string') {
-    return jsonResponse({ error: 'Model did not return an audio URL' }, 502);
+  const url = extractUrl(output);
+  if (!url) {
+    console.error('[generate-audio] no audio URL in output:', JSON.stringify(output));
+    return jsonResponse({ error: 'Model returned no audio URL' }, 502);
   }
 
   return jsonResponse({ url }, 200);

@@ -51,7 +51,7 @@ function nextLoopId(): string {
 const DEFAULT_STEPS_PER_PATTERN = 16 as const;
 const DEFAULT_SWING = 0;
 
-// Default initial state
+// Default initial state - tracks start with no notes so nothing plays automatically on startup
 const INITIAL_SONG: SongData = {
   title: "INIT_SEQUENCE_01",
   bpm: 128,
@@ -62,7 +62,7 @@ const INITIAL_SONG: SongData = {
       id: "t1",
       name: "LEAD",
       type: "synth",
-      notes: [{ note: "C4", startStep: 0, durationSteps: 2 }, { note: "E4", startStep: 4, durationSteps: 2 }, { note: "G4", startStep: 8, durationSteps: 2 }, { note: "B4", startStep: 12, durationSteps: 2 }],
+      notes: [],
       params: { waveform: "sawtooth", attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 2000, filterRes: 1, gain: 0.4 },
       muted: false,
       solo: false,
@@ -73,7 +73,7 @@ const INITIAL_SONG: SongData = {
       id: "t2",
       name: "BASS",
       type: "bass",
-      notes: [{ note: "C2", startStep: 0, durationSteps: 4 }, { note: "G2", startStep: 8, durationSteps: 4 }],
+      notes: [],
       params: { waveform: "square", attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.1, filterCutoff: 400, filterRes: 5, gain: 0.6 },
       muted: false,
       solo: false,
@@ -84,7 +84,7 @@ const INITIAL_SONG: SongData = {
       id: "t3",
       name: "KICK",
       type: "drums",
-      notes: [{ note: "kick", startStep: 0, durationSteps: 1 }, { note: "kick", startStep: 4, durationSteps: 1 }, { note: "kick", startStep: 8, durationSteps: 1 }, { note: "kick", startStep: 12, durationSteps: 1 }],
+      notes: [],
       params: { waveform: "sine", attack: 0, decay: 0.1, sustain: 0, release: 0, filterCutoff: 1000, filterRes: 0, gain: 1 },
       muted: false,
       solo: false,
@@ -98,6 +98,7 @@ const App: React.FC = () => {
   const { state: song, setState: setSong, undo, redo, canUndo, canRedo } = useUndoRedo<SongData>(INITIAL_SONG);
   const [playState, setPlayState] = useState<PlayState>(PlayState.STOPPED);
   const [currentStep, setCurrentStep] = useState<number>(-1);
+  const [cancelStep, setCancelStep] = useState<number>(0);
   const [selectedStep, setSelectedStep] = useState<number>(0);
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -167,13 +168,17 @@ const App: React.FC = () => {
     if (!initialized) return;
     audioEngine.stop();
     setPlayState(PlayState.STOPPED);
-    setCurrentStep(-1);
+    // Update cancel mark to the position saved by the engine (or 0 after double-stop)
+    setCancelStep(audioEngine.getCancelStep());
+    // currentStep is updated via onStepCallback; no manual override needed
   };
 
   const handleGenerate = async (): Promise<void> => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
     handleStop();
+    audioEngine.resetToStart();
+    setCancelStep(0);
 
     const result = await generateAudioFromText(prompt, generationDuration, modelVersion);
     if (isErr(result)) {
@@ -399,6 +404,8 @@ const App: React.FC = () => {
 
   const handleLoad = () => {
     handleStop();
+    audioEngine.resetToStart();
+    setCancelStep(0);
     const result = loadSong();
     if (isErr(result)) alert(result.error.message);
     else setSong(result.value);
@@ -427,6 +434,8 @@ const App: React.FC = () => {
         if (isErr(result)) alert(result.error.message);
         else {
           handleStop();
+          audioEngine.resetToStart();
+          setCancelStep(0);
           setSong(result.value);
         }
       };
@@ -720,6 +729,7 @@ const App: React.FC = () => {
                                         stepsPerPattern={song.stepsPerPattern}
                                         currentStep={currentStep}
                                         selectedStep={selectedStep}
+                                        cancelStep={cancelStep}
                                         onStepSelect={(step) => setSelectedStep(step)}
                                         onStepToggle={(step) => handleStepToggle(track.id, step)}
                                     />

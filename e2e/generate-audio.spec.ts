@@ -73,7 +73,7 @@ test.describe('Music generation (Generate)', () => {
       await route.fulfill({
         status: 502,
         contentType: 'application/json',
-        body: JSON.stringify({ error: 'HuggingFace API error 502' }),
+                body: JSON.stringify({ error: 'Generation failed: Replicate API error 502' }),
       });
     });
 

@@ -1,123 +1,111 @@
 import { ok, err, type Result } from '../lib/result';
 import {
-  generateAudioRequestSchema,
-  generateAudioResponseSchema,
-  type GenerateAudioRequest,
-  type GenerateAudioSuccess,
-  type MusicGenModelVersion,
-  GENERATE_AUDIO_DURATION_DEFAULT,
-  MUSICGEN_MODEL_VERSION_DEFAULT,
+  GENERATE_AUDIO_PROMPT_MAX_LENGTH,
+  GENERATE_AUDIO_DURATION_MIN,
+  GENERATE_AUDIO_DURATION_MAX,
 } from '../schemas/generateAudioSchema';
 
 /** Client-side result type for successful generation. */
-export type GenerateAudioResult = GenerateAudioSuccess;
+export type GenerateAudioResult = { url: string };
 
-/** Timeout (ms) — must be >= API maxDuration (300s). MusicGen can take 2–5 min with cold start. */
-const FETCH_TIMEOUT_MS = 300_000;
+/** API endpoint path. */
+const GENERATE_AUDIO_API = '/api/generate-audio';
+/** Default model version. */
+const DEFAULT_MODEL_VERSION = 'large';
 
 /**
- * Call the app's serverless API to generate audio from text (MusicGen).
- * In production the API runs on the same origin; in dev use Vercel dev or full URL.
+ * Generate audio from a text prompt via the Replicate single-shot API:
+ * POST /api/generate-audio → { url }
  *
- * @param prompt - Text description of the desired music (e.g. "Dark cyberpunk bassline").
- * @param durationSeconds - Clip length 10–15 seconds. Default 12.
- * @param modelVersion - MusicGen model to use: 'large' (default), 'stereo-large', 'melody-large', or 'stereo-melody-large'.
- * @returns Result with { url } on success, or Error on failure.
+ * Uses response.text() + JSON.parse() for compatibility with vi.fn() mocks in tests.
  */
 export async function generateAudioFromText(
   prompt: string,
-  durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT,
-  modelVersion: MusicGenModelVersion = MUSICGEN_MODEL_VERSION_DEFAULT
+  duration: number = GENERATE_AUDIO_DURATION_DEFAULT,
+  modelVersion: string = DEFAULT_MODEL_VERSION
 ): Promise<Result<GenerateAudioResult, Error>> {
-  const parseResult = generateAudioRequestSchema.safeParse({
-    prompt: prompt.trim(),
-    duration: durationSeconds,
-    model_version: modelVersion,
-  });
-  if (!parseResult.success) {
-    const e = parseResult.error as { message?: string; issues?: Array<{ message?: string }> };
-    const msg =
-      (Array.isArray(e.issues) ? e.issues.map((i) => i.message).join('; ') : null) ||
-      e.message ||
-      'Invalid prompt';
-    return err(new Error(msg));
+
+  // --- Input validation (no fetch) ---
+  if (!prompt || prompt.trim().length === 0) {
+    return err(new Error('Missing or empty prompt'));
   }
-  const { prompt: trimmed, duration, model_version } = parseResult.data;
+  if (prompt.length > GENERATE_AUDIO_PROMPT_MAX_LENGTH) {
+    return err(new Error(`Prompt too long (max ${GENERATE_AUDIO_PROMPT_MAX_LENGTH} characters)`));
+  }
 
-  const apiBase =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : (process.env.VITE_APP_URL as string | undefined) ?? '';
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  // --- Fetch ---
+  const clampedDuration = Math.max(
+    GENERATE_AUDIO_DURATION_MIN,
+    Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(duration))
+  );
 
   try {
-    const body: GenerateAudioRequest = { prompt: trimmed, duration, model_version };
-    const res = await fetch(`${apiBase}/api/generate-audio`, {
+    const response = await fetch(GENERATE_AUDIO_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
+      body: JSON.stringify({ prompt, duration: clampedDuration, model_version: modelVersion }),
     });
-    clearTimeout(timeoutId);
-
-    const text = await res.text();
-    let data: unknown;
+    const raw = await response.text();
+    if (!response.ok) {
+      return err(parseErrorBody(raw, response.status));
+    }
+    let data: Record<string, unknown>;
     try {
-      data = text ? JSON.parse(text) : {};
+      data = JSON.parse(raw) as Record<string, unknown>;
     } catch {
-      return err(
-        new Error(
-          res.ok
-            ? 'Invalid response from server'
-            : `Generate failed: ${res.status} ${res.statusText}${text ? ` — ${text.slice(0, 200)}` : ''}`
-        )
-      );
+      return err(new Error('Invalid response from server (could not parse JSON)'));
     }
-
-    if (!res.ok) {
-      if (res.status === 404) {
-        return err(
-          new Error(
-            'Generate API not found. Run with "npm run dev:full" or "vercel dev" so /api/generate-audio is available (plain "npm run dev" does not serve the API).'
-          )
-        );
-      }
-      const parsed = generateAudioResponseSchema.safeParse(data);
-      const msg =
-        parsed.success && 'error' in parsed.data
-          ? parsed.data.error
-          : `HTTP ${res.status}`;
-      return err(new Error(msg));
+    if (typeof data.url === 'string') {
+      return ok({ url: data.url });
     }
-
-    const parsed = generateAudioResponseSchema.safeParse(data);
-    const url =
-      parsed.success &&
-      'url' in parsed.data &&
-      typeof parsed.data.url === 'string'
-        ? parsed.data.url
-        : null;
-    if (!url) {
-      return err(new Error('Invalid response: no audio URL'));
-    }
-
-    return ok({ url });
+    return err(new Error('Server returned no audio URL in response'));
   } catch (e) {
-    clearTimeout(timeoutId);
-    const message = e instanceof Error ? e.message : String(e);
-    if (
-      message === 'Failed to fetch' ||
-      (e as Error & { code?: string })?.code === 'ERR_NETWORK_CHANGED'
-    ) {
-      return err(
-        new Error('Network error. Check your connection and try again.')
-      );
-    }
-    if ((e as Error & { name?: string })?.name === 'AbortError') {
-      return err(new Error('Request timed out. Try again.'));
-    }
-    return err(new Error(message));
+    return err(normalizeNetworkError(e));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Turn a raw fetch rejection into a user-friendly Error.
+ */
+function normalizeNetworkError(e: unknown): Error {
+  if (e instanceof DOMException && e.name === 'AbortError') {
+    return new Error('Request timed out. Please try again.');
+  }
+  if (
+    e instanceof TypeError ||
+    (e instanceof Error && 'code' in e &&
+      (e as Error & { code: string }).code === 'ERR_NETWORK_CHANGED')
+  ) {
+    return new Error('Network error. Check your connection and try again.');
+  }
+  return e instanceof Error ? e : new Error(String(e));
+}
+
+/**
+ * Build an Error from a non-2xx response body.
+ * - 404  -> hint to run `vercel dev`
+ * - JSON body with .error string -> use that
+ * - Anything else -> fall back to HTTP status code
+ */
+function parseErrorBody(raw: string, status: number): Error {
+  if (status === 404) {
+    return new Error(
+      'API route not found (404). Make sure the dev server is running with `vercel dev`.'
+    );
+  }
+  if (raw) {
+    try {
+      const body = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof body.error === 'string') {
+        return new Error(body.error);
+      }
+    } catch {
+      // not JSON — fall through
+    }
+  }
+  return new Error(`HTTP ${status}`);
 }
