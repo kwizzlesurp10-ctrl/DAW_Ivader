@@ -11,16 +11,18 @@ import {
 const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 
 /**
- * Extract a plain URL string from a Replicate run() output value.
- * Handles: plain string, array of strings, FileOutput with url() method, toString().
+ * Extract a plain URL string from a Replicate output value.
+ * Handles: plain string, array of strings, FileOutput object with url() method,
+ * FileOutput.toString().
  */
 function extractUrl(value: unknown): string | null {
-  // Array — take first element
+  if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('data:'))) return value;
   if (Array.isArray(value)) {
-    return extractUrl(value[0]);
-  }
-  if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('data:'))) {
-    return value;
+    for (const item of value) {
+      const u = extractUrl(item);
+      if (u) return u;
+    }
+    return null;
   }
   if (value && typeof value === 'object') {
     // FileOutput with url() method
@@ -51,6 +53,9 @@ function jsonResponse(obj: Record<string, unknown>, status: number): Response {
 }
 
 export default async function handler(request: Request): Promise<Response> {
+  if (!request || typeof request !== 'object') {
+    return jsonResponse({ error: 'Invalid request' }, 500);
+  }
   try {
     return await handleRequest(request);
   } catch (err) {
@@ -65,44 +70,37 @@ async function handleRequest(request: Request): Promise<Response> {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
+  // Only POST is supported — single-shot generation
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
   const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
   if (!replicateToken) {
-    return jsonResponse(
-      { error: 'No audio backend configured. Add REPLICATE_API_TOKEN in Vercel → Settings → Environment Variables, then redeploy.' },
-      503
-    );
+    return jsonResponse({ error: 'No audio backend configured. Set REPLICATE_API_TOKEN in your environment variables.' }, 503);
   }
-
-  // Parse request body
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return jsonResponse({ error: 'Invalid JSON body' }, 400);
-  }
-
-  const parsed = parseGenerateAudioRequest(rawBody);
-  if (!parsed.ok) {
-    return jsonResponse({ error: parsed.error }, 400);
-  }
-
-  const { prompt, duration, model_version } = parsed.data;
-  console.log(`[generate-audio] run: prompt="${prompt}" duration=${duration}s model=${model_version}`);
 
   const replicate = new Replicate({ auth: replicateToken });
 
+  let rawBody: unknown;
+  try { rawBody = await request.json(); }
+  catch { return jsonResponse({ error: 'Invalid JSON body' }, 400); }
+
+  const parsed = parseGenerateAudioRequest(rawBody);
+  if (!parsed.ok) return jsonResponse({ error: parsed.error }, 400);
+
+  const { prompt, duration } = parsed.data;
+  console.log(`[generate-audio] running: prompt="${prompt}" duration=${duration}s`);
+
+  // Single-shot: replicate.run() waits for the prediction to complete and returns output directly.
   let output: unknown;
   try {
-    output = await replicate.run(STABLE_AUDIO_MODEL, {
+    output = await replicate.run(STABLE_AUDIO_REPLICATE_MODEL, {
       input: { prompt, duration },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[generate-audio] run failed:', message);
+    console.error('[generate-audio] generation failed:', message);
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
   }
 
@@ -112,6 +110,5 @@ async function handleRequest(request: Request): Promise<Response> {
     return jsonResponse({ error: 'Model returned no audio URL' }, 502);
   }
 
-  console.log(`[generate-audio] success url=${url}`);
   return jsonResponse({ url }, 200);
 }

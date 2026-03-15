@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-/** Valid duration range for client-side generation (seconds). Min 10, Max 15, Default 12. */
+/** Valid duration range for generated audio loops (seconds). Min 10, Max 15, Default 12. */
 export const GENERATE_AUDIO_DURATION_MIN = 10;
 export const GENERATE_AUDIO_DURATION_MAX = 15;
 export const GENERATE_AUDIO_DURATION_DEFAULT = 12;
