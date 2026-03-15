@@ -23,6 +23,10 @@ export const MUSICGEN_MODEL_VERSIONS = [
 ] as const;
 
 export type MusicgenModelVersion = (typeof MUSICGEN_MODEL_VERSIONS)[number];
+export type MusicGenModelVersion = MusicgenModelVersion;
+
+/** Default model version for the MusicGen/Stable Audio backend. */
+export const MUSICGEN_MODEL_VERSION_DEFAULT: MusicgenModelVersion = 'large';
 
 /** All supported model_version values (including legacy MusicGen). */
 export const SUPPORTED_MODEL_VERSIONS = MUSICGEN_MODEL_VERSIONS;
@@ -33,7 +37,7 @@ export const SUPPORTED_MODEL_VERSIONS = MUSICGEN_MODEL_VERSIONS;
  */
 export const generateAudioRequestSchema = z.object({
   prompt: z
-    .string()
+    .string({ error: 'Missing or empty prompt' })
     .transform((s) => s.trim())
     .pipe(
       z
@@ -54,7 +58,7 @@ export const generateAudioRequestSchema = z.object({
   model_version: z
     .enum(MUSICGEN_MODEL_VERSIONS)
     .optional()
-    .default('large'),
+    .default(MUSICGEN_MODEL_VERSION_DEFAULT),
 });
 
 export type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;
