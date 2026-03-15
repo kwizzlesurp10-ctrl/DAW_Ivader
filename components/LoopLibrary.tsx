@@ -147,7 +147,7 @@ export const LoopLibrary: React.FC<LoopLibraryProps> = ({ loops, onDeleteLoop, o
       </div>
 
       <p className="text-[10px] text-gray-700 mt-3">
-        ▶ Preview &bull; Drag loops onto tracks to use them
+        ▶ Preview &bull; Drag loops onto tracks in the sequencer to use them
       </p>
     </div>
   );

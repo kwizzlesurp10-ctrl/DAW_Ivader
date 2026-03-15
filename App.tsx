@@ -51,7 +51,7 @@ function nextLoopId(): string {
 const DEFAULT_STEPS_PER_PATTERN = 16 as const;
 const DEFAULT_SWING = 0;
 
-// Default initial state
+// Default initial state - tracks start with no notes so nothing plays automatically on startup
 const INITIAL_SONG: SongData = {
   title: "INIT_SEQUENCE_01",
   bpm: 128,
@@ -62,7 +62,7 @@ const INITIAL_SONG: SongData = {
       id: "t1",
       name: "LEAD",
       type: "synth",
-      notes: [{ note: "C4", startStep: 0, durationSteps: 2 }, { note: "E4", startStep: 4, durationSteps: 2 }, { note: "G4", startStep: 8, durationSteps: 2 }, { note: "B4", startStep: 12, durationSteps: 2 }],
+      notes: [],
       params: { waveform: "sawtooth", attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 2000, filterRes: 1, gain: 0.4 },
       muted: false,
       solo: false,
@@ -73,7 +73,7 @@ const INITIAL_SONG: SongData = {
       id: "t2",
       name: "BASS",
       type: "bass",
-      notes: [{ note: "C2", startStep: 0, durationSteps: 4 }, { note: "G2", startStep: 8, durationSteps: 4 }],
+      notes: [],
       params: { waveform: "square", attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.1, filterCutoff: 400, filterRes: 5, gain: 0.6 },
       muted: false,
       solo: false,
@@ -84,7 +84,7 @@ const INITIAL_SONG: SongData = {
       id: "t3",
       name: "KICK",
       type: "drums",
-      notes: [{ note: "kick", startStep: 0, durationSteps: 1 }, { note: "kick", startStep: 4, durationSteps: 1 }, { note: "kick", startStep: 8, durationSteps: 1 }, { note: "kick", startStep: 12, durationSteps: 1 }],
+      notes: [],
       params: { waveform: "sine", attack: 0, decay: 0.1, sustain: 0, release: 0, filterCutoff: 1000, filterRes: 0, gain: 1 },
       muted: false,
       solo: false,
