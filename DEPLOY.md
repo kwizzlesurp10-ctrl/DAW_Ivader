@@ -2,12 +2,26 @@
 
 **Deployment uses real audio only:** the audio engine and generate-audio API use the real Web Audio API and Replicate (recommended) or HuggingFace (fallback) (MusicGen). No mock or simulation modes are used in production; they are disabled for deployment.
 
-## Quick Deploy
+## Quick Deploy (CLI)
 
 ```bash
 npx vercel login    # First time only
 npx vercel --prod
 ```
+
+## Automatic Deploy via GitHub Actions
+
+The repository includes `.github/workflows/deploy.yml` which automatically runs tests, builds, and deploys to Vercel production on every push to `main` or `master`.
+
+**One-time setup — add these secrets in GitHub → Settings → Secrets → Actions:**
+
+| Secret | How to get it |
+|--------|---------------|
+| `VERCEL_TOKEN` | [vercel.com/account/tokens](https://vercel.com/account/tokens) |
+| `VERCEL_ORG_ID` | Run `vercel env pull` locally and check `.vercel/project.json`, or find it in Vercel Dashboard → Settings |
+| `VERCEL_PROJECT_ID` | Same as above |
+
+After adding the secrets, any push to `main` will trigger a production deployment automatically.
 
 ## Environment Variables
 

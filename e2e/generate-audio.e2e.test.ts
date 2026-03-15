@@ -1,6 +1,6 @@
 /**
  * End-to-end test: music generation full pipeline (API handler → response → client contract).
- * Runs in Node with mocked HuggingFace; no browser required.
+  * Runs in Node with mocked Replicate; no browser required.
  * For full UI E2E, run: npx playwright test (requires app server).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
