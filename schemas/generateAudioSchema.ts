@@ -22,11 +22,10 @@ export const MUSICGEN_MODEL_VERSIONS = [
   'stereo-melody-large',
 ] as const;
 
-export type MusicgenModelVersion = (typeof MUSICGEN_MODEL_VERSIONS)[number];
-export type MusicGenModelVersion = MusicgenModelVersion;
+export type MusicGenModelVersion = (typeof MUSICGEN_MODEL_VERSIONS)[number];
 
-/** Default model version for the MusicGen/Stable Audio backend. */
-export const MUSICGEN_MODEL_VERSION_DEFAULT: MusicgenModelVersion = 'large';
+/** Default model version used when none is specified. */
+export const MUSICGEN_MODEL_VERSION_DEFAULT: MusicGenModelVersion = 'large';
 
 /** All supported model_version values (including legacy MusicGen). */
 export const SUPPORTED_MODEL_VERSIONS = MUSICGEN_MODEL_VERSIONS;
