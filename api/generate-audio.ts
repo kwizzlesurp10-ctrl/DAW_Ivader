@@ -1,18 +1,43 @@
 import Replicate from 'replicate';
-import { parseGenerateAudioRequest } from '../schemas/generateAudioSchema';
+import {
+  parseGenerateAudioRequest,
+  GENERATE_AUDIO_DURATION_MIN,
+  GENERATE_AUDIO_DURATION_MAX,
+  GENERATE_AUDIO_DURATION_DEFAULT,
+  GENERATE_AUDIO_PROMPT_MAX_LENGTH,
+} from '../schemas/generateAudioSchema';
 
-/** Meta MusicGen model on Replicate. */
-const MUSICGEN_MODEL =
-  'meta/musicgen:b05b1dff1d8c6dc63d14b0cdb42135378dcb87f6373b0d3d341ede46e59e2b38';
+/** Stability AI Stable Audio 2.5 model on Replicate. */
+const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 
 /**
- * Vercel serverless: POST /api/generate-audio
- * Body: { prompt: string, duration?: number, model_version?: string } — validated with Zod.
- * Returns: { url: string } | { error: string }
- * Uses Meta MusicGen via Replicate. Set REPLICATE_API_TOKEN in Vercel env.
- * Supports premium models: stereo-large, melody-large, stereo-melody-large.
+ * Extract a plain URL string from a Replicate output value.
+ * Handles: plain string, array of strings, FileOutput object with url() method,
+ * FileOutput.toString().
  */
-export const config = { maxDuration: 120 };
+function extractUrl(value: unknown): string | null {
+  if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('data:'))) return value;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const u = extractUrl(item);
+      if (u) return u;
+    }
+    return null;
+  }
+  if (value && typeof value === 'object') {
+    // FileOutput with url() method
+    if (typeof (value as { url?: unknown }).url === 'function') {
+      const r = (value as { url: () => unknown }).url();
+      if (typeof r === 'string' && r.startsWith('http')) return r;
+    }
+    // FileOutput with toString()
+    const s = String(value);
+    if (s.startsWith('http') || s.startsWith('data:')) return s;
+  }
+  return null;
+}
+
+export const config = { maxDuration: 300 };
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -20,10 +45,7 @@ const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-function jsonResponse(
-  obj: { error?: string; url?: string },
-  status: number
-): Response {
+function jsonResponse(obj: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(obj), {
     status,
     headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
@@ -31,12 +53,15 @@ function jsonResponse(
 }
 
 export default async function handler(request: Request): Promise<Response> {
+  if (!request || typeof request !== 'object') {
+    return jsonResponse({ error: 'Invalid request' }, 500);
+  }
   try {
     return await handleRequest(request);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
     console.error('[generate-audio]', message);
-    return jsonResponse({ error: `Server error: ${message}` }, 500);
+    return jsonResponse({ error: 'Invalid request' }, 500);
   }
 }
 
@@ -44,53 +69,45 @@ async function handleRequest(request: Request): Promise<Response> {
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
+
+  // Only POST is supported — single-shot generation
   if (request.method !== 'POST') {
     return jsonResponse({ error: 'Method not allowed' }, 405);
   }
 
-  const token = process.env.REPLICATE_API_TOKEN;
-  if (!token?.trim()) {
-    return jsonResponse(
-      {
-        error:
-          'REPLICATE_API_TOKEN is not set. Add it in Vercel: Project → Settings → Environment Variables, then redeploy.',
-      },
-      503
-    );
+  const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
+  if (!replicateToken) {
+    return jsonResponse({ error: 'No audio backend configured. Set REPLICATE_API_TOKEN in your environment variables.' }, 503);
   }
+
+  const replicate = new Replicate({ auth: replicateToken });
 
   let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return jsonResponse({ error: 'Invalid JSON body' }, 400);
-  }
+  try { rawBody = await request.json(); }
+  catch { return jsonResponse({ error: 'Invalid JSON body' }, 400); }
 
-  const parseResult = parseGenerateAudioRequest(rawBody);
-  if (!parseResult.ok) {
-    return jsonResponse({ error: parseResult.error }, 400);
-  }
-  const { prompt, duration, model_version } = parseResult.data;
+  const parsed = parseGenerateAudioRequest(rawBody);
+  if (!parsed.ok) return jsonResponse({ error: parsed.error }, 400);
 
+  const { prompt, duration } = parsed.data;
+  console.log(`[generate-audio] running: prompt="${prompt}" duration=${duration}s`);
+
+  // Single-shot: replicate.run() waits for the prediction to complete and returns output directly.
   let output: unknown;
   try {
-    const replicate = new Replicate({ auth: token });
-    output = await replicate.run(MUSICGEN_MODEL, {
-      input: { prompt, duration, model_version },
+    output = await replicate.run(STABLE_AUDIO_REPLICATE_MODEL, {
+      input: { prompt, duration },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.error('[generate-audio] generation failed:', message);
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
   }
 
-  const url =
-    typeof output === 'string'
-      ? output
-      : Array.isArray(output)
-        ? output[0]
-        : (output as { url?: string })?.url;
-  if (!url || typeof url !== 'string') {
-    return jsonResponse({ error: 'Model did not return an audio URL' }, 502);
+  const url = extractUrl(output);
+  if (!url) {
+    console.error('[generate-audio] no audio URL in output:', JSON.stringify(output));
+    return jsonResponse({ error: 'Model returned no audio URL' }, 502);
   }
 
   return jsonResponse({ url }, 200);

@@ -14,12 +14,12 @@ describe('generateAudioSchema', () => {
     it('accepts valid prompt and duration', () => {
       const result = generateAudioRequestSchema.safeParse({
         prompt: 'dark bass',
-        duration: 8,
+        duration: 12,
       });
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.prompt).toBe('dark bass');
-        expect(result.data.duration).toBe(8);
+        expect(result.data.duration).toBe(12);
       }
     });
 
@@ -53,14 +53,14 @@ describe('generateAudioSchema', () => {
     it('rounds fractional duration and clamps to valid range', () => {
       const over = generateAudioRequestSchema.safeParse({
         prompt: 'x',
-        duration: 25.7,
+        duration: 20,
       });
       expect(over.success).toBe(true);
-      if (over.success) expect(over.data.duration).toBe(26);
+      if (over.success) expect(over.data.duration).toBe(GENERATE_AUDIO_DURATION_MAX);
 
       const under = generateAudioRequestSchema.safeParse({
         prompt: 'x',
-        duration: 0.4,
+        duration: 5,
       });
       expect(under.success).toBe(true);
       if (under.success) expect(under.data.duration).toBe(GENERATE_AUDIO_DURATION_MIN);
@@ -71,6 +71,15 @@ describe('generateAudioSchema', () => {
       const result = generateAudioRequestSchema.safeParse({ prompt: maxPrompt });
       expect(result.success).toBe(true);
       if (result.success) expect(result.data.prompt).toHaveLength(GENERATE_AUDIO_PROMPT_MAX_LENGTH);
+    });
+
+    it('accepts valid model_version small', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        model_version: 'small',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.model_version).toBe('small');
     });
 
     it('accepts valid model_version large', () => {
@@ -157,11 +166,11 @@ describe('generateAudioSchema', () => {
 
   describe('parseGenerateAudioRequest', () => {
     it('returns ok with data for valid input', () => {
-      const result = parseGenerateAudioRequest({ prompt: 'test', duration: 5 });
+      const result = parseGenerateAudioRequest({ prompt: 'test', duration: 12 });
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.data.prompt).toBe('test');
-        expect(result.data.duration).toBe(5);
+        expect(result.data.duration).toBe(12);
         expect(result.data.model_version).toBe('large');
       }
     });
@@ -169,7 +178,7 @@ describe('generateAudioSchema', () => {
     it('returns ok with custom model_version', () => {
       const result = parseGenerateAudioRequest({
         prompt: 'test',
-        duration: 5,
+        duration: 12,
         model_version: 'stereo-large',
       });
       expect(result.ok).toBe(true);

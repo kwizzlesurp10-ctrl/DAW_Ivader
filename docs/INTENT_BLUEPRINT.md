@@ -59,6 +59,7 @@ Nodes are **intents** (what the system must do). Edges are **depends-on** or **e
 | `exportSongToJson` / `importSongFromJson` | same | Export/import string ↔ SongData |
 | `generateAudioFromText` | `services/textToAudioService.ts` | POST /api/generate-audio → Result<{url}> |
 | `createGeneratedAudioTrack` | `lib/createGeneratedAudioTrack.ts` | url + options → Track (audio) |
+| Song mutations (pure) | `lib/songMutations.ts` | addTrack, removeTrack, duplicateTrack, moveTrack, setTrack*, toggleStep, setBpm, setSwing, setStepsPerPattern, etc. |
 | `AudioEngine`        | `services/audioEngine.ts` | setSongData, start/pause/stop, scheduleNote, preload audio |
 | `useUndoRedo`        | `hooks/useUndoRedo.ts` | history + setState + undo/redo |
 | `handler`            | `api/generate-audio.ts` | Validate → Replicate → { url } \| { error } |
@@ -94,7 +95,7 @@ Every external input (API, file, localStorage) goes through Zod then Result; eve
 
 | Metric                  | Current (baseline) | Target   | How |
 |-------------------------|---------------------|----------|-----|
-| Unit test count         | 149                 | Keep and grow with new quanta | One test file per quantum (lib, schema, service, hook). |
+| Unit test count         | 196                 | Keep and grow with new quanta | One test file per quantum (lib, schema, service, hook). |
 | Integration test       | API + textToAudio   | Keep     | Mock external deps only. |
 | Branch/edge coverage   | Good for schemas, result, storage | High for all public APIs | Adversarial tests: null, empty, bounds, invalid types. |
 | Time to add a new “intent” | —                 | &lt; 1 day | New node = new module + schema if I/O + tests; edges = import only. |
@@ -129,8 +130,9 @@ These are implemented in existing and new tests; no direct replication of logic�
 | `services/storageService.ts` | Load, save, export, import song |
 | `services/textToAudioService.ts` | Generate audio from text (client) |
 | `services/audioEngine.ts`  | Playback, scheduling, metronome, analyser |
-| `services/geminiService.ts` | Generate SongData from Gemini (optional) |
+| `services/geminiService.ts` | Generate SongData via OpenRouter (optional) |
 | `lib/createGeneratedAudioTrack.ts` | Build audio track from URL |
+| `lib/songMutations.ts`     | Pure song mutation functions (add/remove/duplicate/move track, toggle step, set bpm/swing, etc.) |
 | `api/generate-audio.ts`    | Serverless generate-audio (Replicate) |
 | `hooks/useUndoRedo.ts`     | Undo/redo state |
 | `App.tsx`                  | Orchestration only (no business logic) |

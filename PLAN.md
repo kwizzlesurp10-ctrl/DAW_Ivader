@@ -16,8 +16,8 @@
 - [ ] Optional: code-split heavy chunks (chunk >500KB) — deferred
 
 ### 1.2 Environment & Security
-- [x] `.env.example` documents `GEMINI_API_KEY`
-- [x] Vercel build uses `GEMINI_API_KEY` from project env (set in Dashboard)
+- [x] `.env.example` documents `OPEN_ROUTER_API_KEY`
+- [x] Vercel build uses `OPEN_ROUTER_API_KEY` from project env (set in Dashboard)
 - Note: Key is baked into client bundle — acceptable for demo; use server proxy for production-grade secrecy
 
 ### 1.3 UX/Polish
@@ -54,11 +54,11 @@ npx vercel --prod
 
 # 3. Set env var (required for AI Generate)
 # Vercel Dashboard → Project → Settings → Environment Variables
-# Add: GEMINI_API_KEY = your_api_key
+# Add: OPEN_ROUTER_API_KEY = your_api_key
 # Then redeploy: npx vercel --prod
 ```
 
-**Or use Git:** Push to GitHub, connect repo at vercel.com/new, add `GEMINI_API_KEY` env var, deploy.
+**Or use Git:** Push to GitHub, connect repo at vercel.com/new, add `OPEN_ROUTER_API_KEY` env var, deploy.
 
 ### 3.3 Custom Domain
 1. Vercel Dashboard → Your Project → **Settings** → **Domains**
@@ -71,7 +71,7 @@ npx vercel --prod
 ## Phase 4: Post-Deploy
 
 - [ ] Verify app loads at `https://your-project.vercel.app`
-- [ ] Test: Initialize → Play → Generate (needs `GEMINI_API_KEY` in env)
+- [ ] Test: Initialize → Play → Generate (needs `OPEN_ROUTER_API_KEY` in env)
 - [ ] Final URL: `https://yourdomain.com` after adding custom domain
 
 ---

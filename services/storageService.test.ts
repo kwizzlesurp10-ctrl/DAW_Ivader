@@ -80,6 +80,39 @@ describe('storageService', () => {
       expect(isErr(result)).toBe(true);
       if (isErr(result)) expect(result.error.message).toContain('No saved song');
     });
+
+    it('returns err when save throws (e.g. quota)', () => {
+      const failingStorage = {
+        ...mockLocalStorage,
+        setItem: (): void => {
+          throw new Error('QuotaExceededError');
+        },
+      };
+      vi.stubGlobal('localStorage', failingStorage);
+      const result = saveSong(validSong);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Save failed');
+    });
+
+    it('returns err when load finds invalid JSON in storage', () => {
+      store[STORAGE_KEY] = 'not valid json {{{';
+      const result = loadSong();
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Load failed');
+    });
+
+    it('returns err when save throws non-Error (e.g. string)', () => {
+      const failingStorage = {
+        ...mockLocalStorage,
+        setItem: (): void => {
+          throw 'quota';
+        },
+      };
+      vi.stubGlobal('localStorage', failingStorage);
+      const result = saveSong(validSong);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Save failed');
+    });
   });
 
   describe('exportSongToJson', () => {

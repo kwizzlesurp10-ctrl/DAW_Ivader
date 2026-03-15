@@ -132,5 +132,26 @@ describe('songSchema', () => {
       const result = parseSongResponse({ title: 'X', bpm: 120, tracks: [] });
       expect(isErr(result)).toBe(true);
     });
+    it('preserves audioTrimStart and audioTrimEnd on audio tracks', () => {
+      const raw = {
+        title: 'Trim',
+        bpm: 120,
+        tracks: [
+          {
+            ...validTrack,
+            type: 'audio',
+            audioUrl: 'https://example.com/clip.wav',
+            audioTrimStart: 1.5,
+            audioTrimEnd: 10,
+          },
+        ],
+      };
+      const result = parseSongResponse(raw);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) {
+        expect(result.value.tracks[0].audioTrimStart).toBe(1.5);
+        expect(result.value.tracks[0].audioTrimEnd).toBe(10);
+      }
+    });
   });
 });

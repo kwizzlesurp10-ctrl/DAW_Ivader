@@ -245,14 +245,51 @@ describe('audioEngine', () => {
       expect(audioEngine.getAnalyser()).not.toBeNull();
     });
 
-    it('stop resets and invokes onStepCallback with -1', async () => {
+    it('stop saves cancel mark and invokes onStepCallback with current step', async () => {
       const { audioEngine } = await import('./audioEngine');
       const onStep = vi.fn();
       audioEngine.setOnStepCallback(onStep);
 
+      // Start playback so isStopped becomes false, then stop
+      await audioEngine.start();
       audioEngine.stop();
 
-      expect(onStep).toHaveBeenCalledWith(-1);
+      // First stop should save the cancel mark (not -1) — step may have advanced
+      const lastCall = onStep.mock.calls[onStep.mock.calls.length - 1];
+      expect(lastCall[0]).toBeGreaterThanOrEqual(0);
+    });
+
+    it('double-stop resets to start and invokes onStepCallback with -1', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const onStep = vi.fn();
+      audioEngine.setOnStepCallback(onStep);
+
+      // Start then stop (first stop saves cancel mark)
+      await audioEngine.start();
+      audioEngine.stop();
+
+      // Second stop (double-stop) resets to beginning
+      audioEngine.stop();
+
+      expect(onStep).toHaveBeenLastCalledWith(-1);
+    });
+
+    it('getCancelStep returns 0 initially', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      expect(audioEngine.getCancelStep()).toBe(0);
+    });
+
+    it('resetToStart clears cancel mark and invokes onStepCallback with -1', async () => {
+      const { audioEngine } = await import('./audioEngine');
+      const onStep = vi.fn();
+      audioEngine.setOnStepCallback(onStep);
+
+      await audioEngine.start();
+      audioEngine.stop();
+      audioEngine.resetToStart();
+
+      expect(onStep).toHaveBeenLastCalledWith(-1);
+      expect(audioEngine.getCancelStep()).toBe(0);
     });
 
     it('pause clears scheduler and suspends context', async () => {

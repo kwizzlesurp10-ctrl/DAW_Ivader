@@ -6,6 +6,7 @@ interface SequencerProps {
   stepsPerPattern: StepsPerPattern;
   currentStep: number;
   selectedStep: number;
+  cancelStep?: number;
   onStepSelect: (step: number) => void;
   onStepToggle?: (step: number) => void;
 }
@@ -15,6 +16,7 @@ export const Sequencer: React.FC<SequencerProps> = ({
   stepsPerPattern,
   currentStep,
   selectedStep,
+  cancelStep,
   onStepSelect,
   onStepToggle,
 }) => {
@@ -73,6 +75,7 @@ export const Sequencer: React.FC<SequencerProps> = ({
            const active = isStepActive(step);
            const isCurrent = currentStep === step;
            const isSelected = selectedStep === step;
+           const isCancelMark = currentStep === -1 && cancelStep !== undefined && cancelStep === step;
            
            // Step Visual Logic
            let baseClasses = "flex-1 min-w-[12px] h-full rounded-[1px] transition-all duration-75 relative group border-t border-b";
@@ -91,10 +94,13 @@ export const Sequencer: React.FC<SequencerProps> = ({
            // Playhead Overlay
            const playheadClass = isCurrent ? "after:absolute after:inset-0 after:bg-white after:opacity-50 after:z-30 after:shadow-[0_0_10px_white]" : "";
 
+           // Cancel Mark Overlay (shows resume point when stopped)
+           const cancelMarkClass = isCancelMark ? "after:absolute after:inset-0 after:bg-[#b026ff] after:opacity-30 after:z-30 after:border after:border-[#b026ff] after:border-opacity-80" : "";
+
            return (
              <div
                 key={step}
-                className={`${baseClasses} ${playheadClass}`}
+                className={`${baseClasses} ${playheadClass} ${cancelMarkClass}`}
                 onClick={() => {
                   onStepSelect(step);
                   if (onStepToggle) onStepToggle(step);

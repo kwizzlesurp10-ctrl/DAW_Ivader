@@ -56,12 +56,12 @@ describe('textToAudioService (communication layer)', () => {
         expect.objectContaining({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: 'dark bass', duration: 8, model_version: 'large' }),
+          body: JSON.stringify({ prompt: 'dark bass', duration: 12, model_version: 'large' }),
         })
       );
     });
 
-    it('passes default duration 8 when not provided', async () => {
+    it('passes default duration when not provided', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
         status: 200,
@@ -74,7 +74,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'large' }),
+          body: JSON.stringify({ prompt: 'test', duration: 12, model_version: 'large' }),
         })
       );
     });
@@ -110,7 +110,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'stereo-large' }),
+          body: JSON.stringify({ prompt: 'test', duration: 10, model_version: 'stereo-large' }),
         })
       );
     });
@@ -128,7 +128,7 @@ describe('textToAudioService (communication layer)', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          body: JSON.stringify({ prompt: 'test', duration: 8, model_version: 'large' }),
+          body: JSON.stringify({ prompt: 'test', duration: 12, model_version: 'large' }),
         })
       );
     });

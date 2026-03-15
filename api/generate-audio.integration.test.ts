@@ -25,6 +25,7 @@ describe('api/generate-audio (communication layer)', () => {
 
   afterEach(() => {
     delete process.env.REPLICATE_API_TOKEN;
+    vi.restoreAllMocks();
   });
 
   async function post(body: unknown): Promise<Response> {
@@ -42,7 +43,6 @@ describe('api/generate-audio (communication layer)', () => {
       const res = await handler(
         new Request('https://example.com/api/generate-audio', { method: 'OPTIONS' })
       );
-
       expect(res.status).toBe(204);
       expect(res.headers.get('Access-Control-Allow-Origin')).toBeDefined();
     });
@@ -51,7 +51,6 @@ describe('api/generate-audio (communication layer)', () => {
       const res = await handler(
         new Request('https://example.com/api/generate-audio', { method: 'GET' })
       );
-
       expect(res.status).toBe(405);
       expect(res.headers.get('Content-Type')).toContain('application/json');
       const data = await res.json();
@@ -66,27 +65,23 @@ describe('api/generate-audio (communication layer)', () => {
           body: JSON.stringify({ prompt: 'test' }),
         })
       );
-
       expect(res.status).toBe(405);
     });
 
     it('includes CORS headers in success response', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
-
       const res = await post({ prompt: 'test' });
-
       expect(res.status).toBe(200);
       expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
     });
   });
 
   describe('auth', () => {
-    it('returns 503 when REPLICATE_API_TOKEN is missing', async () => {
+    it('returns 503 when REPLICATE_API_TOKEN is not set', async () => {
       delete process.env.REPLICATE_API_TOKEN;
       vi.resetModules();
       const mod = await import('./generate-audio');
       const h = mod.default;
-
       const res = await h(
         new Request('https://example.com/api/generate-audio', {
           method: 'POST',
@@ -94,10 +89,9 @@ describe('api/generate-audio (communication layer)', () => {
           body: JSON.stringify({ prompt: 'test' }),
         })
       );
-
       expect(res.status).toBe(503);
       const data = await res.json();
-      expect(data.error).toContain('REPLICATE_API_TOKEN');
+      expect(data.error).toContain('No audio backend configured');
     });
   });
 
@@ -110,7 +104,6 @@ describe('api/generate-audio (communication layer)', () => {
           body: 'not json',
         })
       );
-
       expect(res.status).toBe(400);
       const data = await res.json();
       expect(data.error).toContain('Invalid JSON');
@@ -118,60 +111,51 @@ describe('api/generate-audio (communication layer)', () => {
 
     it('returns 400 for missing prompt', async () => {
       const res = await post({});
-
       expect(res.status).toBe(400);
       const data = await res.json();
       expect(data.error).toContain('Missing or empty');
     });
 
     it('returns 400 for empty prompt', async () => {
-      const res = await post({ prompt: '   ' });
-
+      const res = await post({ prompt: ' ' });
       expect(res.status).toBe(400);
     });
 
     it('returns 400 for non-string prompt', async () => {
       const res = await post({ prompt: 123 });
-
       expect(res.status).toBe(400);
     });
 
     it('accepts prompt only and defaults duration', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
-
       const res = await post({ prompt: 'test' });
-
       expect(res.status).toBe(200);
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ prompt: 'test', duration: 8 }),
+          input: expect.objectContaining({ prompt: 'test', duration: 12 }),
         })
       );
     });
 
-    it('clamps duration above 30 to 30', async () => {
+    it('clamps duration above max to max', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
-
       await post({ prompt: 'test', duration: 100 });
-
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ duration: 30 }),
+          input: expect.objectContaining({ duration: 15 }),
         })
       );
     });
 
-    it('clamps duration below 1 to 1', async () => {
+    it('clamps duration below min to min', async () => {
       mockRun.mockResolvedValue('https://x.com/a.wav');
-
       await post({ prompt: 'test', duration: 0 });
-
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ duration: 1 }),
+          input: expect.objectContaining({ duration: 10 }),
         })
       );
     });
@@ -181,9 +165,7 @@ describe('api/generate-audio (communication layer)', () => {
     it('returns 200 with url when Replicate returns string', async () => {
       const url = 'https://replicate.delivery/xyz.wav';
       mockRun.mockResolvedValue(url);
-
       const res = await post({ prompt: 'dark bass' });
-
       expect(res.status).toBe(200);
       expect(res.headers.get('Content-Type')).toContain('application/json');
       const data = await res.json();
@@ -192,31 +174,44 @@ describe('api/generate-audio (communication layer)', () => {
 
     it('returns 200 with url when Replicate returns array', async () => {
       mockRun.mockResolvedValue(['https://replicate.delivery/abc.wav']);
-
       const res = await post({ prompt: 'test', duration: 5 });
-
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.url).toBe('https://replicate.delivery/abc.wav');
     });
 
-    it('returns 200 when Replicate returns object with url key', async () => {
-      mockRun.mockResolvedValue({ url: 'https://cdn.example.com/out.wav' });
-
+    it('returns 200 when Replicate returns FileOutput (toString returns URL)', async () => {
+      const mockFileOutput = { toString: () => 'https://cdn.example.com/out.wav' };
+      mockRun.mockResolvedValue(mockFileOutput);
       const res = await post({ prompt: 'test' });
-
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.url).toBe('https://cdn.example.com/out.wav');
+    });
+
+    it('returns 200 when Replicate returns FileOutput with url() method', async () => {
+      const mockFileOutput = { url: () => 'https://replicate.delivery/out.mp3' };
+      mockRun.mockResolvedValue(mockFileOutput);
+      const res = await post({ prompt: 'test' });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.url).toBe('https://replicate.delivery/out.mp3');
+    });
+
+    it('calls stability-ai/stable-audio-2.5 model', async () => {
+      mockRun.mockResolvedValue('https://replicate.delivery/out.mp3');
+      await post({ prompt: 'chill beats' });
+      expect(mockRun).toHaveBeenCalledWith(
+        'stability-ai/stable-audio-2.5',
+        expect.any(Object)
+      );
     });
   });
 
   describe('Replicate errors', () => {
     it('returns 502 when Replicate returns no URL', async () => {
       mockRun.mockResolvedValue({});
-
       const res = await post({ prompt: 'test' });
-
       expect(res.status).toBe(502);
       const data = await res.json();
       expect(data.error).toContain('audio URL');
@@ -224,25 +219,19 @@ describe('api/generate-audio (communication layer)', () => {
 
     it('returns 502 when Replicate returns null', async () => {
       mockRun.mockResolvedValue(null);
-
       const res = await post({ prompt: 'test' });
-
       expect(res.status).toBe(502);
     });
 
     it('returns 502 when Replicate returns object with empty url', async () => {
       mockRun.mockResolvedValue({ url: '' });
-
       const res = await post({ prompt: 'test' });
-
       expect(res.status).toBe(502);
     });
 
     it('returns 502 when Replicate throws', async () => {
       mockRun.mockRejectedValue(new Error('API rate limit'));
-
       const res = await post({ prompt: 'test' });
-
       expect(res.status).toBe(502);
       const data = await res.json();
       expect(data.error).toContain('Generation failed');
@@ -250,12 +239,11 @@ describe('api/generate-audio (communication layer)', () => {
   });
 
   describe('handler outer catch', () => {
-    it('returns 500 when request causes handleRequest to throw', async () => {
+    it('returns 500 with Invalid request when request is null', async () => {
       const res = await handler(null as unknown as Request);
-
       expect(res.status).toBe(500);
       const data = await res.json();
-      expect(data.error).toContain('Server error');
+      expect(data.error).toBe('Invalid request');
     });
   });
 });
