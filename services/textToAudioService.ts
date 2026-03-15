@@ -3,6 +3,7 @@ import {
   GENERATE_AUDIO_PROMPT_MAX_LENGTH,
   GENERATE_AUDIO_DURATION_MIN,
   GENERATE_AUDIO_DURATION_MAX,
+  GENERATE_AUDIO_DURATION_DEFAULT,
 } from '../schemas/generateAudioSchema';
 
 /** Client-side result type for successful generation. */
