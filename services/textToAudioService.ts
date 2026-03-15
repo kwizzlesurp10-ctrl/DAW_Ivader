@@ -14,8 +14,6 @@ const POLL_INTERVAL_MS = 4_000;
 const POLL_TIMEOUT_MS = 600_000;
 /** API endpoint path. */
 const GENERATE_AUDIO_API = '/api/generate-audio';
-/** Default generation duration in seconds. */
-const DEFAULT_DURATION = 12;
 /** Default model version. */
 const DEFAULT_MODEL_VERSION = 'large';
 
@@ -29,7 +27,7 @@ const DEFAULT_MODEL_VERSION = 'large';
  */
 export async function generateAudioFromText(
   prompt: string,
-  duration: number = DEFAULT_DURATION,
+  duration: number = GENERATE_AUDIO_DURATION_DEFAULT,
   modelVersion: string = DEFAULT_MODEL_VERSION
 ): Promise<Result<GenerateAudioResult, Error>> {
 
@@ -63,15 +61,15 @@ export async function generateAudioFromText(
     } catch {
       return err(new Error('Invalid response from server (could not parse JSON)'));
     }
-    if (typeof data.predictionId !== 'string') {
-      // Also handle direct { url } for test mocks that return url immediately
-      if (typeof data.url === 'string') {
-        return ok({ url: data.url });
-      }
-      const errMsg = typeof data.error === 'string' ? data.error : `HTTP ${response.status}`;
-      return err(new Error(errMsg));
+    if (typeof data.predictionId === 'string') {
+      predictionId = data.predictionId;
+    } else if (typeof data.url === 'string') {
+      // Some test mocks return { url } directly from POST — treat as immediate success
+      return ok({ url: data.url });
+    } else {
+      // 2xx but neither predictionId nor url — nothing usable returned
+      return err(new Error('Server returned no audio URL in response'));
     }
-    predictionId = data.predictionId;
   } catch (e) {
     return err(normalizeNetworkError(e));
   }

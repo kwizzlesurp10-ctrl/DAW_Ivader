@@ -1,0 +1,130 @@
+# Automatically delete head branches after PRs are merged,
+# and provide a manual trigger to clean up stale branches in bulk.
+name: Cleanup stale branches
+
+on:
+  # Auto-delete the head branch when a PR is merged
+  pull_request:
+    types: [closed]
+
+  # Manual trigger to bulk-delete stale branches
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (list branches without deleting)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  # ── Auto-delete head branch after PR merge ──────────────────────
+  delete-merged-branch:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete head branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = context.payload.pull_request.head.ref;
+            const defaultBranch = context.payload.repository.default_branch;
+
+            if (branch === defaultBranch) {
+              console.log(`Skipping default branch: ${branch}`);
+              return;
+            }
+
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${branch}`,
+              });
+              console.log(`Deleted branch: ${branch}`);
+            } catch (error) {
+              console.log(`Branch already deleted or protected: ${branch}`);
+            }
+
+  # ── Manual bulk cleanup of stale branches ───────────────────────
+  bulk-cleanup:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find and delete stale branches
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const dryRun = '${{ inputs.dry_run }}' === 'true';
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Get default branch
+            const { data: repoData } = await github.rest.repos.get({ owner, repo });
+            const defaultBranch = repoData.default_branch;
+
+            // List all branches
+            const branches = await github.paginate(github.rest.repos.listBranches, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+
+            console.log(`Found ${branches.length} branches total`);
+            console.log(`Default branch: ${defaultBranch}`);
+            console.log(`Dry run: ${dryRun}\n`);
+
+            let cleaned = 0;
+            let skipped = 0;
+
+            for (const branch of branches) {
+              const name = branch.name;
+
+              // Never delete the default branch or protected branches
+              if (name === defaultBranch || branch.protected) {
+                console.log(`SKIP (default/protected): ${name}`);
+                skipped++;
+                continue;
+              }
+
+              // Check if there's an open PR for this branch
+              const { data: prs } = await github.rest.pulls.list({
+                owner,
+                repo,
+                head: `${owner}:${name}`,
+                state: 'open',
+              });
+
+              if (prs.length > 0) {
+                console.log(`SKIP (has open PR #${prs[0].number}): ${name}`);
+                skipped++;
+                continue;
+              }
+
+              // Branch has no open PR — safe to delete
+              if (dryRun) {
+                console.log(`WOULD DELETE: ${name}`);
+              } else {
+                try {
+                  await github.rest.git.deleteRef({
+                    owner,
+                    repo,
+                    ref: `heads/${name}`,
+                  });
+                  console.log(`DELETED: ${name}`);
+                } catch (error) {
+                  console.log(`FAILED to delete: ${name} — ${error.message}`);
+                }
+              }
+              cleaned++;
+            }
+
+            console.log(`\n--- Summary ---`);
+            console.log(`Branches skipped: ${skipped}`);
+            console.log(`Stale branches ${dryRun ? 'found (dry run)' : 'deleted'}: ${cleaned}`);

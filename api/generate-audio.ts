@@ -8,7 +8,7 @@ import {
 } from '../schemas/generateAudioSchema';
 
 /** Stability AI Stable Audio 2.5 model on Replicate. */
-const STABLE_AUDIO_REPLICATE_MODEL = 'stability-ai/stable-audio-2.5';
+const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 
 /**
  * Extract a plain URL string from a Replicate output value.
@@ -25,17 +25,19 @@ function extractUrl(value: unknown): string | null {
     return null;
   }
   if (value && typeof value === 'object') {
+    // FileOutput with url() method
     if (typeof (value as { url?: unknown }).url === 'function') {
       const r = (value as { url: () => unknown }).url();
       if (typeof r === 'string' && r.startsWith('http')) return r;
     }
+    // FileOutput with toString()
     const s = String(value);
     if (s.startsWith('http') || s.startsWith('data:')) return s;
   }
   return null;
 }
 
-export const config = { maxDuration: 30 };
+export const config = { maxDuration: 300 };
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
