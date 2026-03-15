@@ -96,7 +96,13 @@ async function handleRequest(request: Request): Promise<Response> {
   let output: unknown;
   try {
     output = await replicate.run(STABLE_AUDIO_MODEL, {
-      input: { prompt, duration },
+      input: {
+        prompt,
+        seconds_total: duration,
+        seconds_start: 0,
+        cfg_scale: 7,
+        steps: 100,
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

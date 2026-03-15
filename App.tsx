@@ -119,6 +119,7 @@ const App: React.FC = () => {
   const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
   const [modelVersion, setModelVersion] = useState<MusicGenModelVersion>(MUSICGEN_MODEL_VERSION_DEFAULT);
   const [generationDuration, setGenerationDuration] = useState<number>(GENERATE_AUDIO_DURATION_DEFAULT);
+  const [samplerPreload, setSamplerPreload] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -196,6 +197,7 @@ const App: React.FC = () => {
       createdAt: Date.now(),
     };
     setLoops(prev => [...prev, newLoop]);
+    setSamplerPreload({ url: result.value.url, name: newLoop.name });
     setPrompt('');
     setIsGenerating(false);
   };
@@ -752,7 +754,7 @@ const App: React.FC = () => {
         <div className="lg:col-span-4 h-full min-h-0 flex flex-col gap-6">
             {/* Audio Sampler Panel */}
             <div className="shrink-0">
-                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} />
+                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} preloadedAudio={samplerPreload} />
             </div>
             
             {/* Synth Controls Panel */}
