@@ -8,20 +8,14 @@ import {
 /** Client-side result type for successful generation. */
 export type GenerateAudioResult = { url: string };
 
-/** How often to poll the prediction status (ms). */
-const POLL_INTERVAL_MS = 4_000;
-/** Max total polling time before giving up — 10 minutes. */
-const POLL_TIMEOUT_MS = 600_000;
 /** API endpoint path. */
 const GENERATE_AUDIO_API = '/api/generate-audio';
 /** Default model version. */
 const DEFAULT_MODEL_VERSION = 'large';
 
 /**
- * Generate audio from a text prompt using the async Replicate polling flow:
- * 1. POST /api/generate-audio -> { predictionId }
- * 2. Poll GET /api/generate-audio?id=<predictionId> every 4s until succeeded/failed.
- * 3. On success, return { url }.
+ * Generate audio from a text prompt via the Replicate single-shot API:
+ * POST /api/generate-audio → { url }
  *
  * Uses response.text() + JSON.parse() for compatibility with vi.fn() mocks in tests.
  */
@@ -44,7 +38,7 @@ export async function generateAudioFromText(
     GENERATE_AUDIO_DURATION_MIN,
     Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(duration))
   );
-  let response: Response;
+
   try {
     const response = await fetch(GENERATE_AUDIO_API, {
       method: 'POST',
@@ -61,59 +55,18 @@ export async function generateAudioFromText(
     } catch {
       return err(new Error('Invalid response from server (could not parse JSON)'));
     }
-    if (typeof data.predictionId === 'string') {
-      predictionId = data.predictionId;
-    } else if (typeof data.url === 'string') {
-      // Some test mocks return { url } directly from POST — treat as immediate success
+    if (typeof data.url === 'string') {
       return ok({ url: data.url });
-    } else {
-      // 2xx but neither predictionId nor url — nothing usable returned
-      return err(new Error('Server returned no audio URL in response'));
     }
+    return err(new Error('Server returned no audio URL in response'));
   } catch (e) {
     return err(normalizeNetworkError(e));
   }
-
-  // --- Step 2: Poll until done ---
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-  while (Date.now() < deadline) {
-    await sleep(POLL_INTERVAL_MS);
-    try {
-      const response = await fetch(
-        `${GENERATE_AUDIO_API}?id=${encodeURIComponent(predictionId)}`
-      );
-      const raw = await response.text();
-      let data: Record<string, unknown>;
-      try {
-        data = JSON.parse(raw) as Record<string, unknown>;
-      } catch {
-        // Malformed poll response — keep retrying
-        continue;
-      }
-      if (data.status === 'succeeded' && typeof data.url === 'string') {
-        return ok({ url: data.url });
-      }
-      if (data.status === 'failed' || data.status === 'canceled') {
-        const errMsg = typeof data.error === 'string' ? data.error : 'Generation failed';
-        return err(new Error(errMsg));
-      }
-      // status: starting | processing | 202 — keep polling
-    } catch (e) {
-      // Network hiccup — keep trying until deadline
-      console.warn('[textToAudioService] poll error, retrying:', e);
-    }
-  }
-
-  return err(new Error('Generation timed out after 10 minutes'));
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * Turn a raw fetch rejection into a user-friendly Error.

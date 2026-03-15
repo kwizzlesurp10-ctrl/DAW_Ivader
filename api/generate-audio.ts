@@ -59,7 +59,7 @@ export default async function handler(request: Request): Promise<Response> {
   try {
     return await handleRequest(request);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
     console.error('[generate-audio]', message);
     return jsonResponse({ error: 'Invalid request' }, 500);
   }
