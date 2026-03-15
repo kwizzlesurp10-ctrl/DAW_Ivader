@@ -95,7 +95,7 @@ async function handleRequest(request: Request): Promise<Response> {
   // Single-shot: replicate.run() waits for the prediction to complete and returns output directly.
   let output: unknown;
   try {
-    output = await replicate.run(STABLE_AUDIO_REPLICATE_MODEL, {
+    output = await replicate.run(STABLE_AUDIO_MODEL, {
       input: { prompt, duration },
     });
   } catch (err) {
