@@ -91,6 +91,7 @@ const App: React.FC = () => {
   const [modelVersion, setModelVersion] = useState<StableAudioModelVersion>(STABLE_AUDIO_MODEL_VERSION_DEFAULT);
   const [generationDuration, setGenerationDuration] = useState(15);
   const [generationSteps, setGenerationSteps] = useState(8);
+  const [generationCfgScale, setGenerationCfgScale] = useState(7);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedTrackId, setSelectedTrackId] = useState<string>(INITIAL_SONG.tracks[0].id);
   const [initialized, setInitialized] = useState(false);
@@ -149,7 +150,8 @@ const App: React.FC = () => {
 
     // Use the selected Stable Audio model and parameters for generation
     const result = await generateAudioFromText(prompt, generationDuration, modelVersion, {
-      steps: generationSteps
+      steps: generationSteps,
+      cfg_scale: generationCfgScale
     });
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
@@ -452,7 +454,7 @@ const App: React.FC = () => {
                         <input 
                             type="range" 
                             min={1} 
-                            max={180} 
+                            max={45} 
                             value={generationDuration} 
                             onChange={(e) => setGenerationDuration(Number(e.target.value))}
                             className="w-16 h-1 accent-[#39ff14]"
@@ -463,16 +465,32 @@ const App: React.FC = () => {
 
                 <div className="flex flex-col gap-1 shrink-0">
                     <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">STEPS</label>
-                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
+                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]" title="Model limit: 8 steps max">
                         <input 
                             type="range" 
                             min={4} 
-                            max={50} 
+                            max={8} 
                             value={generationSteps} 
                             onChange={(e) => setGenerationSteps(Number(e.target.value))}
                             className="w-16 h-1 accent-[#b026ff]"
                         />
                         <span className="text-[10px] font-mono text-[#b026ff] w-4">{generationSteps}</span>
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-1 shrink-0">
+                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">CREATIVITY</label>
+                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
+                        <input 
+                            type="range" 
+                            min={1} 
+                            max={20} 
+                            step={0.5}
+                            value={generationCfgScale} 
+                            onChange={(e) => setGenerationCfgScale(Number(e.target.value))}
+                            className="w-16 h-1 accent-[#ff0055]"
+                        />
+                        <span className="text-[10px] font-mono text-[#ff0055] w-4">{generationCfgScale}</span>
                     </div>
                 </div>
                 

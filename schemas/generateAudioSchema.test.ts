@@ -35,7 +35,7 @@ describe('generateAudioSchema', () => {
     it('clamps duration above max to GENERATE_AUDIO_DURATION_MAX', () => {
       const result = generateAudioRequestSchema.safeParse({
         prompt: 'x',
-        duration: 200,
+        duration: 100,
       });
       expect(result.success).toBe(true);
       if (result.success) expect(result.data.duration).toBe(GENERATE_AUDIO_DURATION_MAX);
@@ -64,6 +64,15 @@ describe('generateAudioSchema', () => {
       });
       expect(under.success).toBe(true);
       if (under.success) expect(under.data.duration).toBe(GENERATE_AUDIO_DURATION_MIN);
+    });
+
+    it('clamps steps to model limit of 8', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'x',
+        steps: 50,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.steps).toBe(8);
     });
 
     it('accepts prompt at max length boundary', () => {

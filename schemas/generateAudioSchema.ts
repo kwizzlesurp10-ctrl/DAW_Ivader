@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /** Valid duration range for Stable Audio (seconds). */
 export const GENERATE_AUDIO_DURATION_MIN = 1;
-export const GENERATE_AUDIO_DURATION_MAX = 180;
+export const GENERATE_AUDIO_DURATION_MAX = 45;
 export const GENERATE_AUDIO_DURATION_DEFAULT = 15;
 
 /** Max prompt length to prevent abuse. */
@@ -49,7 +49,7 @@ export const generateAudioRequestSchema = z.object({
     .number()
     .optional()
     .default(8)
-    .transform((v) => Math.max(4, Math.min(50, Math.round(v)))),
+    .transform((v) => Math.max(4, Math.min(8, Math.round(v)))),
   cfg_scale: z
     .number()
     .optional()
