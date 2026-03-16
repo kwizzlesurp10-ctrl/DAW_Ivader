@@ -115,7 +115,9 @@ async function handleRequest(request: Request): Promise<Response> {
 
   const url = extractUrl(output);
   if (!url) {
-    console.error('[generate-audio] no audio URL in output:', JSON.stringify(output));
+    let outputStr: string;
+    try { outputStr = JSON.stringify(output); } catch { outputStr = String(output); }
+    console.error('[generate-audio] no audio URL in output:', outputStr);
     return jsonResponse({ error: 'Model returned no audio URL' }, 502);
   }
 

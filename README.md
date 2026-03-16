@@ -15,7 +15,7 @@ View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYq
 - **Sequencer**: 8/16/32-step grid, click steps to add/remove notes, per-track mute/solo
 - **Tracks**: Add, remove, duplicate, reorder; synth/bass/drums + **audio** (generated clips); per-track volume, pan, ADSR, filter, waveform
 - **Playback**: Play / Pause / Stop, BPM 1–999, swing 0–100%, optional metronome, master volume
-- **Generate (text-to-audio)**: Type a description and press **Generate**. Uses **Meta MusicGen** (open-source) via **Replicate** to create an audio clip and adds it as a track; plays from the start of each loop.
+- **Generate (text-to-audio)**: Type a description and press **Generate**. Uses **Stability AI Stable Audio 2.5** via **Replicate** to create an audio clip and adds it as a track; plays from the start of each loop.
 - **Persistence**: Save/load in browser (localStorage), export/import JSON
 - **Undo/Redo**: Full history for all song edits
 - **Keyboard**: Space = play/pause, S = stop
@@ -32,8 +32,7 @@ npm ci
 
 # 2. Environment (required for Generate / text-to-audio)
 cp .env.example .env.local
-# Edit .env.local: set REPLICATE_API_TOKEN=your_token  (recommended)
-# — OR — set HUGGINGFACE_API_TOKEN=your_token  (fallback)
+# Edit .env.local: set REPLICATE_API_TOKEN=your_token  (required for Generate)
 # (Optional: OPEN_ROUTER_API_KEY for AI song structure)
 
 # 3. Verify
@@ -50,8 +49,8 @@ npm run dev
 
 ```bash
 npm run build
-npm run preview
-# → http://localhost:4173 (serves dist/)
+npm start
+# → http://localhost:3000 (serves dist/ + /api/generate-audio)
 ```
 
 **Deploy to Vercel** (recommended)
@@ -61,15 +60,15 @@ npx vercel login
 npx vercel --prod
 ```
 
-Set **`REPLICATE_API_TOKEN`** (recommended) or **`HUGGINGFACE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
+Set **`REPLICATE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions, deployment checklist, and custom domain setup.
 
 ---
 
 ## Generate audio setup
 
-The **Generate** button uses Meta MusicGen via **Replicate** (recommended) or **HuggingFace** (fallback). The backend is selected automatically based on which token is configured — **Replicate takes priority when both are set.**
+The **Generate** button uses **Stability AI Stable Audio 2.5** via **Replicate**. Set `REPLICATE_API_TOKEN` to enable audio generation.
 
-### Option A: Replicate (recommended)
+### Replicate setup
 
 1. **Get a Replicate token**  
    Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens), sign in, and create an API token.
@@ -85,28 +84,11 @@ The **Generate** button uses Meta MusicGen via **Replicate** (recommended) or **
 3. **Vercel (production)**  
    In the Vercel project: **Settings → Environment Variables** add **`REPLICATE_API_TOKEN`** with your token, then redeploy.
 
-### Option B: HuggingFace Inference API (fallback)
-
-Used only when `REPLICATE_API_TOKEN` is **not** set.
-
-1. **Get a HuggingFace token**  
-   Go to [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens), sign in, and create a token with Inference API access.
-
-2. **Local**  
-   In `.env.local` add:
-   ```bash
-   HUGGINGFACE_API_TOKEN=your_token
-   ```
-
-3. **Vercel (production)**  
-   In the Vercel project: **Settings → Environment Variables** add **`HUGGINGFACE_API_TOKEN`** with your token, then redeploy.
-
 ---
 
 ## Run locally (dev)
 
 1. **Install:** `npm install`
-2. **Env:** Set `REPLICATE_API_TOKEN` (recommended) or `HUGGINGFACE_API_TOKEN` in `.env.local` for Generate.
-   - Replicate: Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
-   - HuggingFace: Get a token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+2. **Env:** Set `REPLICATE_API_TOKEN` in `.env.local` for Generate.
+   - Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
 3. **Run:** For Generate to work locally, use **`npm run dev:full`** (or `vercel dev`). Plain `npm run dev` only serves the frontend and does not expose `/api/generate-audio`. Otherwise use the deployed app.
