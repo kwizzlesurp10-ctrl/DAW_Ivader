@@ -5,14 +5,31 @@ export interface NoteEvent {
   note: string; // e.g., "C4", "A#3", "kick", "snare"
   startStep: number;
   durationSteps: number;
+  velocity?: number; // 0..1 (default 1)
 }
 
 export type StepsPerPattern = 8 | 16 | 32;
 
+export interface AudioSample {
+  id: string;
+  name: string;
+  url: string;
+  trimStart?: number;
+  trimEnd?: number;
+  loop?: boolean;
+  loopStart?: number;
+  loopEnd?: number;
+  rootNote?: string; // e.g. "C4" - the note the original sample represents
+  minNote?: string; // Lower bound of the key zone
+  maxNote?: string; // Upper bound of the key zone
+  minVelocity?: number; // 0..1
+  maxVelocity?: number; // 0..1
+}
+
 export interface Track {
   id: string;
   name: string;
-  type: 'synth' | 'bass' | 'drums' | 'audio';
+  type: 'synth' | 'bass' | 'drums' | 'audio' | 'sampler';
   notes: NoteEvent[];
   params: SynthParams;
   muted: boolean;
@@ -25,6 +42,8 @@ export interface Track {
   audioTrimStart?: number;
   /** For type 'audio': Optional trim end time in seconds */
   audioTrimEnd?: number;
+  /** For type 'sampler': list of samples with zones. */
+  samples?: AudioSample[];
 }
 
 export interface SynthParams {

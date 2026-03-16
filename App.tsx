@@ -23,8 +23,9 @@ import {
   setSwing as setSwingMutation,
   appendTrack as appendTrackMutation,
   createEmptySynthTrack,
+  createEmptySamplerTrack,
 } from './lib/songMutations';
-import { SongData, Track, PlayState } from './types';
+import { SongData, Track, PlayState, AudioSample } from './types';
 import { StableAudioModelVersion, STABLE_AUDIO_MODEL_VERSION_DEFAULT, STABLE_AUDIO_MODEL_VERSIONS } from './schemas/generateAudioSchema';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
@@ -217,6 +218,13 @@ const App: React.FC = () => {
     setLoops(prev => [...prev, newLoop]);
   };
 
+  const handleSamplerLoaded = (samples: AudioSample[], name: string) => {
+    const newTrack = createEmptySamplerTrack(nextTrackId(), name);
+    newTrack.samples = samples;
+    setSong(prev => addTrackMutation(prev, newTrack));
+    setSelectedTrackId(newTrack.id);
+  };
+
   const handleDeleteLoop = (loopId: string) => {
     setLoops(prev => prev.filter(l => l.id !== loopId));
   };
@@ -263,6 +271,7 @@ const App: React.FC = () => {
     }
 
     setDraggedLoop(null);
+    setDropTargetTrackId(null);
   };
 
   const handleLoopDragOver = (e: React.DragEvent) => {
@@ -340,9 +349,14 @@ const App: React.FC = () => {
 
   const handleDragOver = (e: React.DragEvent, trackId: string) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (draggedTrackId && draggedTrackId !== trackId) {
+    if (draggedLoop) {
+      e.dataTransfer.dropEffect = 'copy';
       setDropTargetTrackId(trackId);
+    } else if (draggedTrackId && draggedTrackId !== trackId) {
+      e.dataTransfer.dropEffect = 'move';
+      setDropTargetTrackId(trackId);
+    } else {
+      setDropTargetTrackId(null);
     }
   };
 
@@ -396,6 +410,7 @@ const App: React.FC = () => {
   const handleDragEnd = () => {
     setDraggedTrackId(null);
     setDropTargetTrackId(null);
+    setDraggedLoop(null);
   };
 
   const handleSave = () => {
@@ -706,10 +721,11 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-[1400px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 flex-1 min-h-0">
+      <div className="flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden">
+        <div className="max-w-[1400px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         
         {/* Left Col: Visualizer & Sequencer */}
-        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4 lg:gap-6 h-full min-h-0">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4 lg:gap-6 min-h-0">
             <div className="cyber-panel p-1 shrink-0 bg-black/90">
                 <Visualizer />
             </div>
@@ -789,10 +805,15 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Col: Synth Controls */}
-        <div className="lg:col-span-5 xl:col-span-4 h-full min-h-0 flex flex-col gap-4 lg:gap-6">
+        <div className="lg:col-span-5 xl:col-span-4 min-h-0 flex flex-col gap-4 lg:gap-6">
             {/* Audio Sampler Panel */}
             <div className="shrink-0">
-                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} preloadedAudio={samplerPreload} />
+                <AudioSampler 
+                  onAudioLoaded={handleAudioSamplerLoaded} 
+                  onSamplerLoaded={handleSamplerLoaded}
+                  preloadedAudio={samplerPreload} 
+                  onLoopDropped={() => setDraggedLoop(null)} 
+                />
             </div>
             
             {/* Synth Controls Panel */}
@@ -900,15 +921,17 @@ const App: React.FC = () => {
                  )}
             </div>
         </div>
-      </div>
-      
-      {/* Loop Library Section */}
-      <div className="max-w-[1400px] w-full mx-auto mt-6">
-        <LoopLibrary 
-          loops={loops} 
-          onDeleteLoop={handleDeleteLoop}
-          onDragStart={handleLoopDragStart}
-        />
+        </div>
+
+        {/* Loop Library Section */}
+        <div className="max-w-[1400px] w-full mx-auto mt-4 lg:mt-6 px-2 md:px-0 shrink-0">
+          <LoopLibrary 
+            loops={loops} 
+            onDeleteLoop={handleDeleteLoop}
+            onDragStart={handleLoopDragStart}
+            onDragEnd={() => setDraggedLoop(null)}
+          />
+        </div>
       </div>
       
       {/* Footer Decoration */}

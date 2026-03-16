@@ -39,6 +39,7 @@ export const Sequencer: React.FC<SequencerProps> = ({
       case 'bass': return 'text-[#b026ff] border-[#b026ff] shadow-[#b026ff]';
       case 'drums': return 'text-[#ff0055] border-[#ff0055] shadow-[#ff0055]';
       case 'audio': return 'text-[#ffaa00] border-[#ffaa00] shadow-[#ffaa00]';
+      case 'sampler': return 'text-[#00e5ff] border-[#00e5ff] shadow-[#00e5ff]';
       default: return 'text-[#39ff14] border-[#39ff14] shadow-[#39ff14]';
     }
   };
@@ -48,6 +49,7 @@ export const Sequencer: React.FC<SequencerProps> = ({
       case 'bass': return 'bg-[#b026ff]';
       case 'drums': return 'bg-[#ff0055]';
       case 'audio': return 'bg-[#ffaa00]';
+      case 'sampler': return 'bg-[#00e5ff]';
       default: return 'bg-[#39ff14]';
     }
   };

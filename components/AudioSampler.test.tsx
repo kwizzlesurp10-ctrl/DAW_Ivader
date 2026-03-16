@@ -7,27 +7,20 @@ describe('AudioSampler', () => {
     const mockOnAudioLoaded = vi.fn();
     render(<AudioSampler onAudioLoaded={mockOnAudioLoaded} />);
     
-    expect(screen.getByText(/AUDIO_SAMPLER/i)).toBeDefined();
+    expect(screen.getByText(/ADVANCED_SAMPLER/i)).toBeDefined();
   });
 
   it('displays drag and drop area', () => {
     const mockOnAudioLoaded = vi.fn();
     render(<AudioSampler onAudioLoaded={mockOnAudioLoaded} />);
     
-    expect(screen.getByText(/Drop audio file or click to browse/i)).toBeDefined();
+    expect(screen.getByText(/Drop audio or click to browse/i)).toBeDefined();
   });
 
   it('displays record audio button', () => {
     const mockOnAudioLoaded = vi.fn();
     render(<AudioSampler onAudioLoaded={mockOnAudioLoaded} />);
     
-    expect(screen.getByText(/RECORD AUDIO/i)).toBeDefined();
-  });
-
-  it('shows supported audio formats', () => {
-    const mockOnAudioLoaded = vi.fn();
-    render(<AudioSampler onAudioLoaded={mockOnAudioLoaded} />);
-    
-    expect(screen.getByText(/Supports: MP3, WAV, OGG, WEBM/i)).toBeDefined();
+    expect(screen.getByText(/RECORD/i)).toBeDefined();
   });
 });

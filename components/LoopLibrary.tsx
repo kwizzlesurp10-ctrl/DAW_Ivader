@@ -16,11 +16,12 @@ interface LoopLibraryProps {
   loops: MusicLoop[];
   onDeleteLoop: (id: string) => void;
   onDragStart: (loop: MusicLoop) => void;
+  onDragEnd?: () => void;
 }
 
 const FRESH_MS = 8_000; // highlight loops added within 8 seconds
 
-export const LoopLibrary: React.FC<LoopLibraryProps> = ({ loops, onDeleteLoop, onDragStart }) => {
+export const LoopLibrary: React.FC<LoopLibraryProps> = ({ loops, onDeleteLoop, onDragStart, onDragEnd }) => {
   const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement | null>>({});
   const [, forceUpdate] = useState(0);
@@ -61,7 +62,7 @@ export const LoopLibrary: React.FC<LoopLibraryProps> = ({ loops, onDeleteLoop, o
 
   if (loops.length === 0) {
     return (
-      <div className="cyber-panel p-4 bg-black/80 border border-gray-800">
+      <div className="cyber-panel p-4 bg-black/80 border border-gray-800 w-full min-w-0 max-w-full">
         <div className="text-xs text-[#b026ff] font-bold tracking-widest mb-3 flex items-center gap-2">
           <Music size={14} /> LOOP_LIBRARY
         </div>
@@ -74,7 +75,7 @@ export const LoopLibrary: React.FC<LoopLibraryProps> = ({ loops, onDeleteLoop, o
   }
 
   return (
-    <div className="cyber-panel p-4 bg-black/80 border border-gray-800">
+    <div className="cyber-panel p-4 bg-black/80 border border-gray-800 w-full min-w-0 max-w-full">
       <div className="text-xs text-[#b026ff] font-bold tracking-widest mb-3 flex items-center gap-2">
         <Music size={14} /> LOOP_LIBRARY
         <span className="text-gray-600 font-normal">({loops.length})</span>
@@ -89,6 +90,7 @@ export const LoopLibrary: React.FC<LoopLibraryProps> = ({ loops, onDeleteLoop, o
               key={loop.id}
               draggable
               onDragStart={(e) => handleDragStart(e, loop)}
+              onDragEnd={() => onDragEnd?.()}
               className={`group relative bg-black/50 border p-3 cursor-move transition-all duration-200 ${
                 isFresh
                   ? 'border-[#39ff14] shadow-[0_0_12px_rgba(57,255,20,0.4)] bg-[#39ff14]/5'

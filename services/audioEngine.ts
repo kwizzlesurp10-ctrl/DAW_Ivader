@@ -78,19 +78,49 @@ class AudioEngine {
     if (!this.ctx) return;
     for (const track of data.tracks) {
       if (track.type === 'audio' && track.audioUrl && !audioBufferCache.has(track.audioUrl)) {
-        try {
-          const res = await fetch(track.audioUrl);
-          if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-          const arrayBuffer = await res.arrayBuffer();
-          const buffer = await this.ctx.decodeAudioData(arrayBuffer);
-          audioBufferCache.set(track.audioUrl, buffer);
-          console.log(`[AudioEngine] Preloaded audio track: ${track.audioUrl}`);
-        } catch (err) {
-          console.error(`[AudioEngine] Failed to preload audio track: ${track.audioUrl}`, err);
-          // Decode or fetch failed; playback will no-op
+        await this.loadAndCacheAudio(track.audioUrl);
+      } else if (track.type === 'sampler' && track.samples) {
+        for (const sample of track.samples) {
+          if (!audioBufferCache.has(sample.url)) {
+            await this.loadAndCacheAudio(sample.url);
+          }
         }
       }
     }
+  }
+
+  private async loadAndCacheAudio(url: string): Promise<void> {
+    if (!this.ctx) return;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const arrayBuffer = await res.arrayBuffer();
+      const buffer = await this.ctx.decodeAudioData(arrayBuffer);
+      audioBufferCache.set(url, buffer);
+      console.log(`[AudioEngine] Preloaded audio: ${url}`);
+    } catch (err) {
+      console.error(`[AudioEngine] Failed to preload audio: ${url}`, err);
+    }
+  }
+
+  private noteToMidi(note: string): number {
+    const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const match = note.match(/^([A-G]#?)(\d+)$/);
+    if (!match) {
+      // Handle non-note names (like 'kick', 'snare')
+      if (note === 'kick') return 36;
+      if (note === 'snare') return 38;
+      return 60; 
+    }
+    const name = match[1];
+    const octave = parseInt(match[2], 10);
+    return (octave + 1) * 12 + names.indexOf(name);
+  }
+
+  private getPlaybackRate(targetNote: string, rootNote: string): number {
+    const targetMidi = this.noteToMidi(targetNote);
+    const rootMidi = this.noteToMidi(rootNote);
+    return Math.pow(2, (targetMidi - rootMidi) / 12);
   }
 
   public setOnStepCallback(cb: (step: number) => void): void {
@@ -246,11 +276,87 @@ class AudioEngine {
         if (stepNumber === 0) this.playAudioTrack(track, time);
         return;
       }
+      
       const notes = track.notes.filter((n) => n.startStep === stepNumber);
       notes.forEach((noteEvent) => {
-        this.playOscillator(track, noteEvent, time);
+        if (track.type === 'sampler') {
+          this.playSamplerTrack(track, noteEvent, time);
+        } else {
+          this.playOscillator(track, noteEvent, time);
+        }
       });
     });
+  }
+
+  private playSamplerTrack(track: Track, note: NoteEvent, time: number): void {
+    if (!this.ctx || !this.masterGain || !track.samples) return;
+    
+    // Find matching sample based on key/velocity zones
+    const midi = this.noteToMidi(note.note);
+    const velocity = note.velocity ?? 1;
+    
+    const sample = track.samples.find(s => {
+      const minMidi = s.minNote ? this.noteToMidi(s.minNote) : 0;
+      const maxMidi = s.maxNote ? this.noteToMidi(s.maxNote) : 127;
+      const minVel = s.minVelocity ?? 0;
+      const maxVel = s.maxVelocity ?? 1;
+      return midi >= minMidi && midi <= maxMidi && velocity >= minVel && velocity <= maxVel;
+    });
+
+    if (!sample) return;
+    const buffer = audioBufferCache.get(sample.url);
+    if (!buffer) return;
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    
+    // Looping
+    if (sample.loop) {
+      source.loop = true;
+      source.loopStart = sample.loopStart ?? 0;
+      source.loopEnd = sample.loopEnd ?? buffer.duration;
+    }
+
+    // Pitch shifting
+    if (sample.rootNote) {
+      source.playbackRate.value = this.getPlaybackRate(note.note, sample.rootNote);
+    }
+
+    // ADSR & Filter
+    const params = track.params;
+    const gainNode = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+    const trackGain = this.ctx.createGain();
+    const panner = this.ctx.createStereoPanner();
+    
+    trackGain.gain.value = (track.volume ?? 1) * velocity;
+    panner.pan.value = track.pan ?? 0;
+
+    filter.type = 'lowpass';
+    filter.Q.value = params.filterRes;
+    filter.frequency.setValueAtTime(params.filterCutoff, time);
+
+    const duration = (60 / (this.songData?.bpm ?? 120)) / 4 * note.durationSteps;
+    const attackEnd = time + params.attack;
+    const decayEnd = attackEnd + params.decay;
+    const sustainVal = params.sustain * params.gain;
+    
+    gainNode.gain.setValueAtTime(0, time);
+    gainNode.gain.linearRampToValueAtTime(params.gain, attackEnd);
+    gainNode.gain.linearRampToValueAtTime(sustainVal, decayEnd);
+    
+    const releaseStart = time + duration;
+    gainNode.gain.setValueAtTime(sustainVal, releaseStart);
+    gainNode.gain.exponentialRampToValueAtTime(0.001, releaseStart + params.release);
+
+    source.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(trackGain);
+    trackGain.connect(panner);
+    panner.connect(this.masterGain);
+
+    source.start(time, sample.trimStart ?? 0);
+    source.stop(releaseStart + params.release + 0.1);
   }
 
   private playAudioTrack(track: Track, time: number): void {

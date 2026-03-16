@@ -5,7 +5,7 @@ import { ok, err, type Result } from '../lib/result';
 /** Runtime validation for external input (e.g. Gemini API response). */
 
 const waveformSchema = z.enum(['sine', 'square', 'sawtooth', 'triangle']);
-const trackTypeSchema = z.enum(['synth', 'bass', 'drums', 'audio']);
+const trackTypeSchema = z.enum(['synth', 'bass', 'drums', 'audio', 'sampler']);
 const stepsPerPatternSchema = z.union([z.literal(8), z.literal(16), z.literal(32)]);
 
 /** Max step index for a given stepsPerPattern (stepsPerPattern - 1). */
@@ -17,6 +17,23 @@ export const noteEventSchema = z.object({
   note: z.string(),
   startStep: z.number().int().min(0).max(31),
   durationSteps: z.number().int().min(1).max(32),
+  velocity: z.number().min(0).max(1).optional(),
+});
+
+export const audioSampleSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string().url(),
+  trimStart: z.number().min(0).optional(),
+  trimEnd: z.number().min(0).optional(),
+  loop: z.boolean().optional(),
+  loopStart: z.number().min(0).optional(),
+  loopEnd: z.number().min(0).optional(),
+  rootNote: z.string().optional(),
+  minNote: z.string().optional(),
+  maxNote: z.string().optional(),
+  minVelocity: z.number().min(0).max(1).optional(),
+  maxVelocity: z.number().min(0).max(1).optional(),
 });
 
 export const synthParamsSchema = z.object({
@@ -43,6 +60,7 @@ export const trackSchema = z.object({
   audioUrl: z.string().url().optional(),
   audioTrimStart: z.number().min(0).optional(),
   audioTrimEnd: z.number().min(0).optional(),
+  samples: z.array(audioSampleSchema).optional(),
 });
 
 export const songDataSchema = z.object({
@@ -95,6 +113,7 @@ export function parseSongResponse(raw: unknown): Result<SongData, Error> {
       audioUrl: t.audioUrl,
       audioTrimStart: t.audioTrimStart,
       audioTrimEnd: t.audioTrimEnd,
+      samples: t.samples,
     })),
   };
   return ok(song);

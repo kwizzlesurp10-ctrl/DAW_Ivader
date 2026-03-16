@@ -252,3 +252,21 @@ export function createEmptySynthTrack(id: string, name: string): Track {
     pan: 0,
   };
 }
+
+/**
+ * Build a new empty sampler track.
+ */
+export function createEmptySamplerTrack(id: string, name: string): Track {
+  return {
+    id,
+    name,
+    type: 'sampler',
+    notes: [],
+    params: { ...DEFAULT_SYNTH_PARAMS },
+    muted: false,
+    solo: false,
+    volume: 1,
+    pan: 0,
+    samples: [],
+  };
+}
