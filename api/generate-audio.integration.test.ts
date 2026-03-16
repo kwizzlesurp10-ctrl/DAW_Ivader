@@ -268,5 +268,18 @@ describe('api/generate-audio (communication layer)', () => {
       const data = await res.json();
       expect(data.error).toBe('Invalid request');
     });
+
+    it('returns 500 with descriptive error when handleRequest throws unexpectedly', async () => {
+      // Create a request where accessing .method throws after the null check passes.
+      const fakeRequest = Object.create(Request.prototype);
+      Object.defineProperty(fakeRequest, 'method', {
+        get() { throw new Error('simulated crash'); },
+      });
+      const res = await handler(fakeRequest);
+      expect(res.status).toBe(500);
+      const data = await res.json();
+      expect(data.error).toContain('Internal error:');
+      expect(data.error).toContain('simulated crash');
+    });
   });
 });

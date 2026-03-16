@@ -64,8 +64,8 @@ export default async function handler(request: Request): Promise<Response> {
     return await handleRequest(request);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
-    console.error('[generate-audio]', message);
-    return jsonResponse({ error: 'Invalid request' }, 500);
+    console.error('[generate-audio] unhandled:', message);
+    return jsonResponse({ error: `Internal error: ${message}` }, 500);
   }
 }
 
@@ -115,7 +115,9 @@ async function handleRequest(request: Request): Promise<Response> {
 
   const url = extractUrl(output);
   if (!url) {
-    console.error('[generate-audio] no audio URL in output:', JSON.stringify(output));
+    let outputStr: string;
+    try { outputStr = JSON.stringify(output); } catch { outputStr = String(output); }
+    console.error('[generate-audio] no audio URL in output:', outputStr);
     return jsonResponse({ error: 'Model returned no audio URL' }, 502);
   }
 
