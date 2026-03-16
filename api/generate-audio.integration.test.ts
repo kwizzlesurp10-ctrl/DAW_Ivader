@@ -198,6 +198,15 @@ describe('api/generate-audio (communication layer)', () => {
       expect(data.url).toBe('https://replicate.delivery/out.mp3');
     });
 
+    it('returns 200 when FileOutput url() returns a URL object', async () => {
+      const mockFileOutput = { url: () => new URL('https://replicate.delivery/out.mp3') };
+      mockRun.mockResolvedValue(mockFileOutput);
+      const res = await post({ prompt: 'test' });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.url).toBe('https://replicate.delivery/out.mp3');
+    });
+
     it('calls stability-ai/stable-audio-2.5 model', async () => {
       mockRun.mockResolvedValue('https://replicate.delivery/out.mp3');
       await post({ prompt: 'chill beats' });
@@ -215,7 +224,7 @@ describe('api/generate-audio (communication layer)', () => {
         expect.objectContaining({
           input: expect.objectContaining({
             cfg_scale: 7,
-            steps: 100,
+            steps: 8,
           }),
         })
       );
