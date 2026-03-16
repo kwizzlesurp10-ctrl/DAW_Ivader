@@ -8,7 +8,11 @@
   "functions": {
     "api/generate-audio.ts": {
       "maxDuration": 300,
-        "includeFiles": "schemas/**"
+      "includeFiles": "schemas/**"
+    },
+    "api/hf-generate.ts": {
+      "maxDuration": 60,
+      "includeFiles": "schemas/**"
     }
   },
   "headers": [

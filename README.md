@@ -51,7 +51,7 @@ npm run dev
 ```bash
 npm run build
 npm run preview
-# → http://localhost:4173 (serves dist/)
+# → http://localhost:4173 (serves dist/ only — API routes not available; use npm run dev:full or deploy to Vercel)
 ```
 
 **Deploy to Vercel** (recommended)

@@ -38,6 +38,7 @@ import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
 import { AudioSampler } from './components/AudioSampler';
 import { LoopLibrary, type MusicLoop } from './components/LoopLibrary';
+import { HFGenerator } from './components/HFGenerator';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -871,6 +872,11 @@ const App: React.FC = () => {
           onDeleteLoop={handleDeleteLoop}
           onDragStart={handleLoopDragStart}
         />
+      </div>
+
+      {/* HuggingFace Creative Generator — text & image (separate from Replicate audio) */}
+      <div className="max-w-[1400px] w-full mx-auto mt-6">
+        <HFGenerator />
       </div>
       
       {/* Footer Decoration */}
