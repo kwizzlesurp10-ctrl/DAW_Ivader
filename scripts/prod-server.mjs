@@ -12,7 +12,7 @@
  */
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { join, resolve, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -84,13 +84,14 @@ async function writeWebResponse(webResponse, res) {
 
 /** Try to serve a static file from dist/. Returns true if served. */
 async function serveStatic(pathname, res) {
-  const safePath = pathname.replace(/\.\./g, '');
-  const filePath = join(DIST_DIR, safePath === '/' ? 'index.html' : safePath);
+  const resolved = resolve(DIST_DIR, pathname === '/' ? 'index.html' : '.' + pathname);
+  // Prevent path traversal: resolved path must stay within DIST_DIR
+  if (!resolved.startsWith(DIST_DIR)) return false;
   try {
-    const fileStat = await stat(filePath);
+    const fileStat = await stat(resolved);
     if (!fileStat.isFile()) return false;
-    const content = await readFile(filePath);
-    const mime = MIME_TYPES[extname(filePath)] || 'application/octet-stream';
+    const content = await readFile(resolved);
+    const mime = MIME_TYPES[extname(resolved)] || 'application/octet-stream';
     res.writeHead(200, { 'Content-Type': mime });
     res.end(content);
     return true;
