@@ -133,7 +133,7 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ prompt: 'test', seconds_total: 12 }),
+          input: expect.objectContaining({ prompt: 'test', duration: 12 }),
         })
       );
     });
@@ -144,7 +144,7 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ seconds_total: 15 }),
+          input: expect.objectContaining({ duration: 15 }),
         })
       );
     });
@@ -155,7 +155,7 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          input: expect.objectContaining({ seconds_total: 10 }),
+          input: expect.objectContaining({ duration: 10 }),
         })
       );
     });
@@ -207,14 +207,13 @@ describe('api/generate-audio (communication layer)', () => {
       );
     });
 
-    it('sends seconds_start, cfg_scale, and steps to Replicate', async () => {
+    it('sends cfg_scale and steps to Replicate', async () => {
       mockRun.mockResolvedValue('https://replicate.delivery/out.mp3');
       await post({ prompt: 'chill beats' });
       expect(mockRun).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
           input: expect.objectContaining({
-            seconds_start: 0,
             cfg_scale: 7,
             steps: 100,
           }),
