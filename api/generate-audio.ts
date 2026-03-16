@@ -98,8 +98,7 @@ async function handleRequest(request: Request): Promise<Response> {
     output = await replicate.run(STABLE_AUDIO_MODEL, {
       input: {
         prompt,
-        seconds_total: duration,
-        seconds_start: 0,
+        duration,
         cfg_scale: 7,
         steps: 100,
       },
