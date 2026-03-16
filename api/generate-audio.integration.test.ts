@@ -190,7 +190,7 @@ describe('api/generate-audio (communication layer)', () => {
     });
 
     it('returns 200 when Replicate returns FileOutput with url() method', async () => {
-      const mockFileOutput = { url: () => 'https://replicate.delivery/out.mp3' };
+      const mockFileOutput = { url: () => new URL('https://replicate.delivery/out.mp3') };
       mockRun.mockResolvedValue(mockFileOutput);
       const res = await post({ prompt: 'test' });
       expect(res.status).toBe(200);
@@ -215,7 +215,7 @@ describe('api/generate-audio (communication layer)', () => {
         expect.objectContaining({
           input: expect.objectContaining({
             cfg_scale: 7,
-            steps: 100,
+            steps: 8,
           }),
         })
       );
@@ -258,6 +258,19 @@ describe('api/generate-audio (communication layer)', () => {
       expect(res.status).toBe(500);
       const data = await res.json();
       expect(data.error).toBe('Invalid request');
+    });
+
+    it('returns 500 with descriptive error when handleRequest throws unexpectedly', async () => {
+      // Create a request where accessing .method throws after the null check passes.
+      const fakeRequest = Object.create(Request.prototype);
+      Object.defineProperty(fakeRequest, 'method', {
+        get() { throw new Error('simulated crash'); },
+      });
+      const res = await handler(fakeRequest);
+      expect(res.status).toBe(500);
+      const data = await res.json();
+      expect(data.error).toContain('Internal error:');
+      expect(data.error).toContain('simulated crash');
     });
   });
 });

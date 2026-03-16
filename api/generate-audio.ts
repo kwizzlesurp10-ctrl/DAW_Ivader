@@ -12,8 +12,8 @@ const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 
 /**
  * Extract a plain URL string from a Replicate output value.
- * Handles: plain string, array of strings, FileOutput object with url() method,
- * FileOutput.toString().
+ * Handles: plain string, array of strings, FileOutput object with url() method
+ * (which returns a URL object), FileOutput.toString().
  */
 function extractUrl(value: unknown): string | null {
   if (typeof value === 'string' && (value.startsWith('http') || value.startsWith('data:'))) return value;
@@ -25,10 +25,14 @@ function extractUrl(value: unknown): string | null {
     return null;
   }
   if (value && typeof value === 'object') {
-    // FileOutput with url() method
+    // FileOutput with url() method — returns a URL object (not a string)
     if (typeof (value as { url?: unknown }).url === 'function') {
       const r = (value as { url: () => unknown }).url();
       if (typeof r === 'string' && r.startsWith('http')) return r;
+      // Handle URL object returned by FileOutput.url()
+      if (r && typeof r === 'object' && 'href' in r && typeof (r as { href: unknown }).href === 'string') {
+        return (r as { href: string }).href;
+      }
     }
     // FileOutput with toString()
     const s = String(value);
@@ -60,8 +64,8 @@ export default async function handler(request: Request): Promise<Response> {
     return await handleRequest(request);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err ?? 'Unknown error');
-    console.error('[generate-audio]', message);
-    return jsonResponse({ error: 'Invalid request' }, 500);
+    console.error('[generate-audio] unhandled:', message);
+    return jsonResponse({ error: `Internal error: ${message}` }, 500);
   }
 }
 
@@ -80,7 +84,7 @@ async function handleRequest(request: Request): Promise<Response> {
     return jsonResponse({ error: 'No audio backend configured. Set REPLICATE_API_TOKEN in your environment variables.' }, 503);
   }
 
-  const replicate = new Replicate({ auth: replicateToken });
+  const replicate = new Replicate({ auth: replicateToken, useFileOutput: false });
 
   let rawBody: unknown;
   try { rawBody = await request.json(); }
@@ -100,7 +104,7 @@ async function handleRequest(request: Request): Promise<Response> {
         prompt,
         duration,
         cfg_scale: 7,
-        steps: 100,
+        steps: 8,
       },
     });
   } catch (err) {
