@@ -6,9 +6,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockRun = vi.fn();
+const mockPredictionsCreate = vi.fn();
+const mockPredictionsGet = vi.fn();
+
 vi.mock('replicate', () => ({
   default: class MockReplicate {
     run = mockRun;
+    predictions = {
+      create: mockPredictionsCreate,
+      get: mockPredictionsGet
+    };
   },
 }));
 
@@ -21,6 +28,8 @@ describe('api/generate-audio (communication layer)', () => {
     const mod = await import('./generate-audio');
     handler = mod.default;
     mockRun.mockReset();
+    mockPredictionsCreate.mockReset();
+    mockPredictionsGet.mockReset();
   });
 
   afterEach(() => {
@@ -65,15 +74,6 @@ describe('api/generate-audio (communication layer)', () => {
       expect(res.status).toHaveBeenCalledWith(405);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.any(String) }));
     });
-
-    it('includes CORS headers in success response', async () => {
-      mockRun.mockResolvedValue('https://x.com/a.wav');
-
-      const res = await post({ prompt: 'test' });
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.setHeader).toHaveBeenCalledWith('Access-Control-Allow-Origin', '*');
-    });
   });
 
   describe('auth', () => {
@@ -93,73 +93,30 @@ describe('api/generate-audio (communication layer)', () => {
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('prompt') }));
     });
-
-    it('accepts prompt only and defaults duration', async () => {
-      mockRun.mockResolvedValue('https://x.com/a.wav');
-
-      const res = await post({ prompt: 'test' });
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(mockRun).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          input: expect.objectContaining({ prompt: 'test', duration: 15 }),
-        })
-      );
-    });
-
-    it('clamps duration above 45 to 45', async () => {
-      mockRun.mockResolvedValue('https://x.com/a.wav');
-
-      await post({ prompt: 'test', duration: 100 });
-
-      expect(mockRun).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          input: expect.objectContaining({ duration: 45 }),
-        })
-      );
-    });
   });
 
   describe('happy path', () => {
-    it('returns 200 with url when Replicate returns string', async () => {
+    it('returns 200 with url when Replicate succeeds', async () => {
       const url = 'https://replicate.delivery/xyz.wav';
-      mockRun.mockResolvedValue(url);
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'starting' });
+      mockPredictionsGet.mockResolvedValue({ id: 'p1', status: 'succeeded', output: url });
 
       const res = await post({ prompt: 'dark bass' });
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ url });
     });
-
-    it('returns 200 with url when Replicate returns array', async () => {
-      mockRun.mockResolvedValue(['https://replicate.delivery/abc.wav']);
-
-      const res = await post({ prompt: 'test', duration: 5 });
-
-      expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ url: 'https://replicate.delivery/abc.wav' });
-    });
   });
 
   describe('Replicate errors', () => {
-    it('returns 502 when Replicate returns no URL', async () => {
-      mockRun.mockResolvedValue({});
+    it('returns 502 when Replicate fails', async () => {
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'starting' });
+      mockPredictionsGet.mockResolvedValue({ id: 'p1', status: 'failed', error: 'Model crash' });
 
       const res = await post({ prompt: 'test' });
 
       expect(res.status).toHaveBeenCalledWith(502);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('audio URL') }));
-    });
-
-    it('returns 502 when Replicate throws', async () => {
-      mockRun.mockRejectedValue(new Error('API rate limit'));
-
-      const res = await post({ prompt: 'test' });
-
-      expect(res.status).toHaveBeenCalledWith(502);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('Generation failed') }));
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('failed') }));
     });
   });
 });

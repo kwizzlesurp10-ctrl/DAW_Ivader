@@ -130,7 +130,7 @@ These are implemented in existing and new tests; no direct replication of logicâ
 | `services/storageService.ts` | Load, save, export, import song |
 | `services/textToAudioService.ts` | Generate audio from text (client) |
 | `services/audioEngine.ts`  | Playback, scheduling, metronome, analyser |
-| `services/geminiService.ts` | Generate SongData from Gemini (optional) |
+| `services/geminiService.ts` | Generate SongData via OpenRouter (optional) |
 | `lib/createGeneratedAudioTrack.ts` | Build audio track from URL |
 | `lib/songMutations.ts`     | Pure song mutation functions (add/remove/duplicate/move track, toggle step, set bpm/swing, etc.) |
 | `api/generate-audio.ts`    | Serverless generate-audio (Replicate) |

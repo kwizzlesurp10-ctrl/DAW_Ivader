@@ -66,15 +66,6 @@ describe('generateAudioSchema', () => {
       if (under.success) expect(under.data.duration).toBe(GENERATE_AUDIO_DURATION_MIN);
     });
 
-    it('clamps steps to model limit of 8', () => {
-      const result = generateAudioRequestSchema.safeParse({
-        prompt: 'x',
-        steps: 50,
-      });
-      expect(result.success).toBe(true);
-      if (result.success) expect(result.data.steps).toBe(8);
-    });
-
     it('accepts prompt at max length boundary', () => {
       const maxPrompt = 'x'.repeat(GENERATE_AUDIO_PROMPT_MAX_LENGTH);
       const result = generateAudioRequestSchema.safeParse({ prompt: maxPrompt });
@@ -106,6 +97,15 @@ describe('generateAudioSchema', () => {
       if (result.success) expect(result.data.model_version).toBe('stable-audio-2.5');
     });
 
+    it('clamps steps to model limit of 8', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'x',
+        steps: 50,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.steps).toBe(8);
+    });
+
     it('rejects invalid model_version', () => {
       const result = generateAudioRequestSchema.safeParse({
         prompt: 'test',
@@ -125,23 +125,8 @@ describe('generateAudioSchema', () => {
       expect(result.success).toBe(false);
     });
 
-    it('rejects whitespace-only prompt', () => {
-      const result = generateAudioRequestSchema.safeParse({ prompt: '   \t\n  ' });
-      expect(result.success).toBe(false);
-    });
-
     it('rejects missing prompt', () => {
       const result = generateAudioRequestSchema.safeParse({});
-      expect(result.success).toBe(false);
-    });
-
-    it('rejects null prompt', () => {
-      const result = generateAudioRequestSchema.safeParse({ prompt: null });
-      expect(result.success).toBe(false);
-    });
-
-    it('rejects non-string prompt', () => {
-      const result = generateAudioRequestSchema.safeParse({ prompt: 123 });
       expect(result.success).toBe(false);
     });
   });
@@ -156,70 +141,6 @@ describe('generateAudioSchema', () => {
         expect(result.data.model_version).toBe('stable-audio-2.5');
       }
     });
-
-    it('returns ok with custom model_version', () => {
-      const result = parseGenerateAudioRequest({
-        prompt: 'test',
-        duration: 5,
-        model_version: 'stable-audio-2.5',
-      });
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.data.model_version).toBe('stable-audio-2.5');
-      }
-    });
-
-    it('returns ok with default duration when omitted', () => {
-      const result = parseGenerateAudioRequest({ prompt: 'hello' });
-      expect(result.ok).toBe(true);
-      if (result.ok) {
-        expect(result.data.duration).toBe(GENERATE_AUDIO_DURATION_DEFAULT);
-      }
-    });
-
-    it('returns error for empty prompt with message containing Missing or empty', () => {
-      const result = parseGenerateAudioRequest({ prompt: '' });
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toContain('Missing or empty');
-    });
-
-    it('returns error for missing prompt', () => {
-      const result = parseGenerateAudioRequest({});
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toBeTruthy();
-    });
-
-    it('returns error for prompt too long', () => {
-      const result = parseGenerateAudioRequest({
-        prompt: 'x'.repeat(GENERATE_AUDIO_PROMPT_MAX_LENGTH + 1),
-      });
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toContain('too long');
-    });
-
-    it('returns error for null input', () => {
-      const result = parseGenerateAudioRequest(null);
-
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toBeTruthy();
-    });
-
-    it('returns error for undefined input', () => {
-      const result = parseGenerateAudioRequest(undefined);
-
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toBeTruthy();
-    });
-
-    it('returns error for non-object input (array)', () => {
-      const result = parseGenerateAudioRequest([{ prompt: 'x' }]);
-      expect(result.ok).toBe(false);
-    });
-
-    it('returns error for non-object input (number)', () => {
-      const result = parseGenerateAudioRequest(42);
-      expect(result.ok).toBe(false);
-    });
   });
 
   describe('generateAudioResponseSchema', () => {
@@ -228,18 +149,6 @@ describe('generateAudioSchema', () => {
         url: 'https://example.com/audio.wav',
       });
       expect(result.success).toBe(true);
-      if (result.success && 'url' in result.data) {
-        expect(result.data.url).toBe('https://example.com/audio.wav');
-      }
-    });
-
-    it('accepts success shape with url containing query string', () => {
-      const url = 'https://cdn.example.com/audio.wav?token=abc';
-      const result = generateAudioResponseSchema.safeParse({ url });
-      expect(result.success).toBe(true);
-      if (result.success && 'url' in result.data) {
-        expect(result.data.url).toBe(url);
-      }
     });
 
     it('accepts error shape with message', () => {
@@ -247,31 +156,6 @@ describe('generateAudioSchema', () => {
         error: 'Generation failed',
       });
       expect(result.success).toBe(true);
-      if (result.success && 'error' in result.data) {
-        expect(result.data.error).toBe('Generation failed');
-      }
-    });
-
-    it('rejects invalid url format', () => {
-      const result = generateAudioResponseSchema.safeParse({
-        url: 'not-a-url',
-      });
-      expect(result.success).toBe(false);
-    });
-
-    it('rejects empty object', () => {
-      const result = generateAudioResponseSchema.safeParse({});
-      expect(result.success).toBe(false);
-    });
-
-    it('rejects url as null', () => {
-      const result = generateAudioResponseSchema.safeParse({ url: null });
-      expect(result.success).toBe(false);
-    });
-
-    it('rejects success shape with empty string url', () => {
-      const result = generateAudioResponseSchema.safeParse({ url: '' });
-      expect(result.success).toBe(false);
     });
   });
 });

@@ -3,9 +3,10 @@ import { Upload, Mic, MicOff, Scissors, Play, Square, RotateCcw } from 'lucide-r
 
 interface AudioSamplerProps {
   onAudioLoaded: (audioUrl: string, name: string, trimStart?: number, trimEnd?: number) => void;
+  preloadedAudio?: { url: string; name: string } | null;
 }
 
-export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => {
+export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded, preloadedAudio }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
@@ -28,6 +29,29 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded }) => 
       }
     };
   }, []);
+
+  // Auto-load generated audio when preloadedAudio changes
+  useEffect(() => {
+    if (!preloadedAudio) return;
+    setAudioPreviewUrl(preloadedAudio.url);
+    setAudioFileName(preloadedAudio.name);
+    const audio = new Audio(preloadedAudio.url);
+    const onMetadata = () => {
+      setDuration(audio.duration);
+      setStartTime(0);
+      setEndTime(audio.duration);
+    };
+    const onError = () => {
+      console.error('[AudioSampler] Failed to load preloaded audio metadata:', preloadedAudio.url);
+    };
+    audio.addEventListener('loadedmetadata', onMetadata);
+    audio.addEventListener('error', onError);
+    return () => {
+      audio.removeEventListener('loadedmetadata', onMetadata);
+      audio.removeEventListener('error', onError);
+      audio.src = '';
+    };
+  }, [preloadedAudio]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();

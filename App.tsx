@@ -30,16 +30,21 @@ import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
 import { AudioSampler } from './components/AudioSampler';
+import { LoopLibrary, type MusicLoop } from './components/LoopLibrary';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+}
+
+function nextLoopId(): string {
+  return 'loop_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
 }
 
 /** Default steps per pattern and swing for new songs. */
 const DEFAULT_STEPS_PER_PATTERN = 16 as const;
 const DEFAULT_SWING = 0;
 
-// Default initial state
+// Default initial state - tracks start with no notes so nothing plays automatically on startup
 const INITIAL_SONG: SongData = {
   title: "INIT_SEQUENCE_01",
   bpm: 128,
@@ -50,7 +55,7 @@ const INITIAL_SONG: SongData = {
       id: "t1",
       name: "LEAD",
       type: "synth",
-      notes: [{ note: "C4", startStep: 0, durationSteps: 2 }, { note: "E4", startStep: 4, durationSteps: 2 }, { note: "G4", startStep: 8, durationSteps: 2 }, { note: "B4", startStep: 12, durationSteps: 2 }],
+      notes: [],
       params: { waveform: "sawtooth", attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 2000, filterRes: 1, gain: 0.4 },
       muted: false,
       solo: false,
@@ -61,7 +66,7 @@ const INITIAL_SONG: SongData = {
       id: "t2",
       name: "BASS",
       type: "bass",
-      notes: [{ note: "C2", startStep: 0, durationSteps: 4 }, { note: "G2", startStep: 8, durationSteps: 4 }],
+      notes: [],
       params: { waveform: "square", attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.1, filterCutoff: 400, filterRes: 5, gain: 0.6 },
       muted: false,
       solo: false,
@@ -72,7 +77,7 @@ const INITIAL_SONG: SongData = {
       id: "t3",
       name: "KICK",
       type: "drums",
-      notes: [{ note: "kick", startStep: 0, durationSteps: 1 }, { note: "kick", startStep: 4, durationSteps: 1 }, { note: "kick", startStep: 8, durationSteps: 1 }, { note: "kick", startStep: 12, durationSteps: 1 }],
+      notes: [],
       params: { waveform: "sine", attack: 0, decay: 0.1, sustain: 0, release: 0, filterCutoff: 1000, filterRes: 0, gain: 1 },
       muted: false,
       solo: false,
@@ -86,6 +91,7 @@ const App: React.FC = () => {
   const { state: song, setState: setSong, undo, redo, canUndo, canRedo } = useUndoRedo<SongData>(INITIAL_SONG);
   const [playState, setPlayState] = useState<PlayState>(PlayState.STOPPED);
   const [currentStep, setCurrentStep] = useState<number>(-1);
+  const [cancelStep, setCancelStep] = useState<number>(0);
   const [selectedStep, setSelectedStep] = useState<number>(0);
   const [prompt, setPrompt] = useState('');
   const [modelVersion, setModelVersion] = useState<StableAudioModelVersion>(STABLE_AUDIO_MODEL_VERSION_DEFAULT);
@@ -99,6 +105,16 @@ const App: React.FC = () => {
   const [metronomeOn, setMetronomeOn] = useState(false);
   const [draggedTrackId, setDraggedTrackId] = useState<string | null>(null);
   const [dropTargetTrackId, setDropTargetTrackId] = useState<string | null>(null);
+  const [loops, setLoops] = useState<MusicLoop[]>(() => {
+    try {
+      const saved = localStorage.getItem('daw_music_loops');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
+  const [samplerPreload, setSamplerPreload] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -111,6 +127,14 @@ const App: React.FC = () => {
   useEffect(() => {
     audioEngine.setMetronomeEnabled(metronomeOn);
   }, [metronomeOn]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('daw_music_loops', JSON.stringify(loops));
+    } catch (e) {
+      console.error('Failed to save loops to localStorage:', e);
+    }
+  }, [loops]);
 
   // Handle Playback Loop Visualization
   useEffect(() => {
@@ -140,48 +164,110 @@ const App: React.FC = () => {
     if (!initialized) return;
     audioEngine.stop();
     setPlayState(PlayState.STOPPED);
-    setCurrentStep(-1);
+    // Update cancel mark to the position saved by the engine (or 0 after double-stop)
+    setCancelStep(audioEngine.getCancelStep());
+    // currentStep is updated via onStepCallback; no manual override needed
   };
 
   const handleGenerate = async (): Promise<void> => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
     handleStop();
+    audioEngine.resetToStart();
+    setCancelStep(0);
 
     // Use the selected Stable Audio model and parameters for generation
     const result = await generateAudioFromText(prompt, generationDuration, modelVersion, {
       steps: generationSteps,
       cfg_scale: generationCfgScale
     });
+    
     if (isErr(result)) {
       alert(`Generate audio failed: ${result.error.message}`);
       setIsGenerating(false);
       return;
     }
 
-    const newTrack = createGeneratedAudioTrack(result.value.url, {
-      id: nextTrackId(),
-      name: 'Generated',
-    });
-    setSong((prev) => appendTrackMutation(prev, newTrack));
-    setSelectedTrackId(newTrack.id);
+    const newLoop: MusicLoop = {
+      id: nextLoopId(),
+      name: `Loop ${loops.length + 1}`,
+      url: result.value.url,
+      duration: generationDuration,
+      prompt: prompt.trim(),
+      createdAt: Date.now(),
+    };
+    setLoops(prev => [...prev, newLoop]);
+    setSamplerPreload({ url: result.value.url, name: newLoop.name });
+    setPrompt('');
     setIsGenerating(false);
   };
 
   const handleAudioSamplerLoaded = (audioUrl: string, name: string, trimStart?: number, trimEnd?: number) => {
-    const newTrack = createGeneratedAudioTrack(audioUrl, {
-      id: nextTrackId(),
+    // Create a new loop from the sampled audio and add it to the library
+    const newLoop: MusicLoop = {
+      id: nextLoopId(),
       name: name || 'Sample',
-    });
-    // Add trim information if provided
-    if (trimStart !== undefined) {
-      newTrack.audioTrimStart = trimStart;
+      url: audioUrl,
+      duration: trimEnd !== undefined && trimStart !== undefined ? trimEnd - trimStart : 8,
+      prompt: 'Uploaded/recorded audio sample',
+      createdAt: Date.now(),
+      trimStart,
+      trimEnd,
+    };
+    setLoops(prev => [...prev, newLoop]);
+  };
+
+  const handleDeleteLoop = (loopId: string) => {
+    setLoops(prev => prev.filter(l => l.id !== loopId));
+  };
+
+  const handleLoopDragStart = (loop: MusicLoop) => {
+    setDraggedLoop(loop);
+  };
+
+  const handleLoopDrop = (e: React.DragEvent, trackId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      const data = e.dataTransfer.getData('application/json');
+      const loop: MusicLoop = JSON.parse(data);
+      
+      // Create a new audio track from the dropped loop
+      const newTrack = createGeneratedAudioTrack(loop.url, {
+        id: nextTrackId(),
+        name: loop.name,
+      });
+      
+      // Add trim information if provided in the loop
+      if (loop.trimStart !== undefined) {
+        newTrack.audioTrimStart = loop.trimStart;
+      }
+      if (loop.trimEnd !== undefined) {
+        newTrack.audioTrimEnd = loop.trimEnd;
+      }
+      
+      // Replace the target track with the new audio track
+      const trackIndex = song.tracks.findIndex(t => t.id === trackId);
+      if (trackIndex === -1) {
+        console.error('Track not found for drop operation:', trackId);
+        return;
+      }
+      
+      const newTracks = [...song.tracks];
+      newTracks[trackIndex] = newTrack;
+      setSong(prev => ({ ...prev, tracks: newTracks }));
+      setSelectedTrackId(newTrack.id);
+    } catch (err) {
+      console.error('Failed to handle loop drop:', err);
     }
-    if (trimEnd !== undefined) {
-      newTrack.audioTrimEnd = trimEnd;
-    }
-    setSong((prev) => appendTrackMutation(prev, newTrack));
-    setSelectedTrackId(newTrack.id);
+
+    setDraggedLoop(null);
+  };
+
+  const handleLoopDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
@@ -266,6 +352,23 @@ const App: React.FC = () => {
 
   const handleDrop = (e: React.DragEvent, targetTrackId: string) => {
     e.preventDefault();
+    
+    // Check if this is a loop drop by trying to get loop data
+    try {
+      const loopData = e.dataTransfer.getData('application/json');
+      if (loopData) {
+        const loop: MusicLoop = JSON.parse(loopData);
+        // If it has loop properties, treat it as a loop drop
+        if (loop.url && loop.name) {
+          handleLoopDrop(e, targetTrackId);
+          return;
+        }
+      }
+    } catch {
+      // Not a loop drop, continue with track reordering
+    }
+    
+    // Handle track reordering
     if (!draggedTrackId || draggedTrackId === targetTrackId) {
       setDraggedTrackId(null);
       setDropTargetTrackId(null);
@@ -303,6 +406,8 @@ const App: React.FC = () => {
 
   const handleLoad = () => {
     handleStop();
+    audioEngine.resetToStart();
+    setCancelStep(0);
     const result = loadSong();
     if (isErr(result)) alert(result.error.message);
     else setSong(result.value);
@@ -331,6 +436,8 @@ const App: React.FC = () => {
         if (isErr(result)) alert(result.error.message);
         else {
           handleStop();
+          audioEngine.resetToStart();
+          setCancelStep(0);
           setSong(result.value);
         }
       };
@@ -383,7 +490,7 @@ const App: React.FC = () => {
   if (!initialized) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden z-10 p-4">
-        <div className="cyber-panel p-8 md:p-12 text-center max-w-2xl w-full relative overflow-hidden group cursor-pointer" onClick={handleInit}>
+        <div className="cyber-panel p-8 md:p-12 text-center max-w-2xl w-full relative overflow-hidden group cursor-pointer" onClick={handleInit} data-testid="splash-panel">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           <div className="absolute bottom-0 right-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           
@@ -397,7 +504,7 @@ const App: React.FC = () => {
           
           <div className="relative inline-block">
              <div className="absolute inset-0 bg-[#39ff14] blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-             <button className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] px-10 py-4 uppercase tracking-widest text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left">
+             <button type="button" className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] px-10 py-4 uppercase tracking-widest text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left" data-testid="init-button">
                 [ Initialize System ]
              </button>
           </div>
@@ -660,6 +767,7 @@ const App: React.FC = () => {
                                         stepsPerPattern={song.stepsPerPattern}
                                         currentStep={currentStep}
                                         selectedStep={selectedStep}
+                                        cancelStep={cancelStep}
                                         onStepSelect={(step) => setSelectedStep(step)}
                                         onStepToggle={(step) => handleStepToggle(track.id, step)}
                                     />
@@ -682,7 +790,7 @@ const App: React.FC = () => {
         <div className="lg:col-span-4 h-full min-h-0 flex flex-col gap-6">
             {/* Audio Sampler Panel */}
             <div className="shrink-0">
-                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} />
+                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} preloadedAudio={samplerPreload} />
             </div>
             
             {/* Synth Controls Panel */}
@@ -790,6 +898,15 @@ const App: React.FC = () => {
                  )}
             </div>
         </div>
+      </div>
+      
+      {/* Loop Library Section */}
+      <div className="max-w-[1400px] w-full mx-auto mt-6">
+        <LoopLibrary 
+          loops={loops} 
+          onDeleteLoop={handleDeleteLoop}
+          onDragStart={handleLoopDragStart}
+        />
       </div>
       
       {/* Footer Decoration */}

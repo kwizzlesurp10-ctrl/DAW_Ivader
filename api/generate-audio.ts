@@ -1,5 +1,8 @@
 import Replicate from 'replicate';
 
+/** 
+ * Map model versions to Replicate identifiers.
+ */
 const MODELS: Record<string, string> = {
   'stable-audio-2.5': 'stability-ai/stable-audio-2.5',
   'stable-audio-open-1.0': 'stackadoc/stable-audio-open-1.0',
@@ -7,6 +10,7 @@ const MODELS: Record<string, string> = {
 };
 
 export default async function handler(req: any, res: any) {
+  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -17,26 +21,30 @@ export default async function handler(req: any, res: any) {
   try {
     const token = process.env.REPLICATE_API_TOKEN;
     if (!token?.trim()) {
-      return res.status(503).json({ error: 'REPLICATE_API_TOKEN is missing.' });
+      return res.status(503).json({ error: 'REPLICATE_API_TOKEN is missing in Vercel.' });
     }
 
     const body = req.body || {};
-    const prompt = (body.prompt || '').trim();
-    if (!prompt) return res.status(400).json({ error: 'Prompt is required.' });
+    const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
+    
+    if (!prompt) {
+      return res.status(400).json({ error: 'Missing or empty prompt' });
+    }
 
+    const duration = Math.max(1, Math.min(45, Number(body.duration) || 15));
     const model_version = body.model_version || 'stable-audio-2.5';
     const modelIdentifier = MODELS[model_version] || MODELS['stable-audio-2.5'];
 
+    console.log(`[API] Generating: "${prompt.slice(0, 30)}..." using ${modelIdentifier}`);
+
     const replicate = new Replicate({ auth: token });
-
-    console.log(`[API] Creating prediction for ${modelIdentifier}...`);
-
-    // Use full model identifier string
+    
+    // Perform generation using polling predictions for better reliability/error reporting
     let prediction = await (replicate.predictions.create as any)({
       model: modelIdentifier,
       input: {
         prompt,
-        duration: Math.min(Number(body.duration) || 15, 45),
+        duration,
         steps: Math.min(Number(body.steps) || 8, 8),
         cfg_scale: Number(body.cfg_scale) || 7
       },
@@ -55,7 +63,7 @@ export default async function handler(req: any, res: any) {
 
     if (prediction.status === 'succeeded') {
       const output = prediction.output;
-      const url = typeof output === 'string' ? output : Array.isArray(output) ? output[0] : (output as any)?.url;
+      const url = typeof output === 'string' ? output : Array.isArray(output) ? output[0] : (output as any)?.url || (output as any)?.audio;
       
       if (url) {
         console.log('[API] Success! URL:', url);
@@ -73,7 +81,7 @@ export default async function handler(req: any, res: any) {
     });
 
   } catch (err: any) {
-    console.error('[API] Fatal Error:', err.message);
-    return res.status(500).json({ error: err.message });
+    console.error('[API] Fatal error:', err.message);
+    return res.status(500).json({ error: `Server error: ${err.message}` });
   }
 }

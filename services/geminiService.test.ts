@@ -2,20 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { generateSong } from './geminiService';
 import { isOk, isErr } from '../lib/result';
 
-const mockGenerateContent = vi.fn();
-vi.mock('@google/genai', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@google/genai')>();
-  return {
-    ...actual,
-    GoogleGenAI: class MockGoogleGenAI {
-      models = {
-        get generateContent() {
-          return mockGenerateContent;
-        },
-      };
-    },
-  };
-});
+const mockFetch = vi.fn();
 
 const validSongRaw = {
   title: 'Test Song',
@@ -43,33 +30,40 @@ const validSongRaw = {
 
 describe('geminiService', () => {
   const origEnv: Record<string, string | undefined> = {};
+  const origFetch = globalThis.fetch;
 
   beforeEach(() => {
-    origEnv.GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    origEnv.OPEN_ROUTER_API_KEY = process.env.OPEN_ROUTER_API_KEY;
     origEnv.API_KEY = process.env.API_KEY;
-    mockGenerateContent.mockReset();
+    globalThis.fetch = mockFetch;
+    mockFetch.mockReset();
   });
 
   afterEach(() => {
-    process.env.GEMINI_API_KEY = origEnv.GEMINI_API_KEY;
+    process.env.OPEN_ROUTER_API_KEY = origEnv.OPEN_ROUTER_API_KEY;
     process.env.API_KEY = origEnv.API_KEY;
+    globalThis.fetch = origFetch;
   });
 
   it('returns err when API key is missing', async () => {
-    process.env.GEMINI_API_KEY = '';
+    process.env.OPEN_ROUTER_API_KEY = '';
     process.env.API_KEY = '';
     const result = await generateSong('dark bass');
     expect(isErr(result)).toBe(true);
     if (isErr(result)) {
-      expect(result.error.message).toContain('GEMINI_API_KEY');
+      expect(result.error.message).toContain('OPEN_ROUTER_API_KEY');
     }
   });
 
   it('returns ok(SongData) when API returns valid JSON', async () => {
-    process.env.GEMINI_API_KEY = 'test-key';
+    process.env.OPEN_ROUTER_API_KEY = 'test-key';
     process.env.API_KEY = '';
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify(validSongRaw),
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: JSON.stringify(validSongRaw) } }],
+        }),
     });
 
     const result = await generateSong('cyberpunk');
@@ -84,8 +78,14 @@ describe('geminiService', () => {
   });
 
   it('returns err when API returns invalid JSON', async () => {
-    process.env.GEMINI_API_KEY = 'test-key';
-    mockGenerateContent.mockResolvedValue({ text: 'not valid json {{{' });
+    process.env.OPEN_ROUTER_API_KEY = 'test-key';
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [{ message: { content: 'not valid json {{{' } }],
+        }),
+    });
 
     const result = await generateSong('test');
     expect(isErr(result)).toBe(true);
@@ -95,9 +95,19 @@ describe('geminiService', () => {
   });
 
   it('returns err when API returns JSON that fails schema', async () => {
-    process.env.GEMINI_API_KEY = 'test-key';
-    mockGenerateContent.mockResolvedValue({
-      text: JSON.stringify({ title: 'X', bpm: 120, tracks: [] }),
+    process.env.OPEN_ROUTER_API_KEY = 'test-key';
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({ title: 'X', bpm: 120, tracks: [] }),
+              },
+            },
+          ],
+        }),
     });
 
     const result = await generateSong('test');
@@ -108,8 +118,11 @@ describe('geminiService', () => {
   });
 
   it('returns err when API returns no text', async () => {
-    process.env.GEMINI_API_KEY = 'test-key';
-    mockGenerateContent.mockResolvedValue({ text: null });
+    process.env.OPEN_ROUTER_API_KEY = 'test-key';
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ choices: [{ message: { content: null } }] }),
+    });
 
     const result = await generateSong('test');
     expect(isErr(result)).toBe(true);

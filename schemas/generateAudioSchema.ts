@@ -21,13 +21,13 @@ export type StableAudioModelVersion = (typeof STABLE_AUDIO_MODEL_VERSIONS)[numbe
 export const STABLE_AUDIO_MODEL_VERSION_DEFAULT: StableAudioModelVersion = 'stable-audio-2.5';
 
 /**
- * Request body for POST /api/generate-audio.
- * Validated with Zod on both client (before send) and server.
+ * Zod schema for the generate-audio API request body.
+ * Shared between client and server for type safety.
  */
 export const generateAudioRequestSchema = z.object({
   prompt: z
-    .optional(z.string())
-    .transform((s) => (s ?? '').trim())
+    .string({ error: 'Missing or empty prompt' })
+    .transform((s) => s.trim())
     .pipe(
       z
         .string()
@@ -43,7 +43,10 @@ export const generateAudioRequestSchema = z.object({
     .optional()
     .default(GENERATE_AUDIO_DURATION_DEFAULT)
     .transform((v) =>
-      Math.max(GENERATE_AUDIO_DURATION_MIN, Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(v)))
+      Math.max(
+        GENERATE_AUDIO_DURATION_MIN,
+        Math.min(GENERATE_AUDIO_DURATION_MAX, Math.round(v))
+      )
     ),
   steps: z
     .number()
@@ -63,39 +66,33 @@ export const generateAudioRequestSchema = z.object({
 
 export type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;
 
-/** Successful response shape. */
-export const generateAudioSuccessSchema = z.object({
-  url: z.string().url(),
-});
-
-/** Error response shape. */
-export const generateAudioErrorSchema = z.object({
-  error: z.string(),
-});
-
-/** Union of possible API responses. */
-export const generateAudioResponseSchema = z.union([
-  generateAudioSuccessSchema,
-  generateAudioErrorSchema,
-]);
-
-export type GenerateAudioSuccess = z.infer<typeof generateAudioSuccessSchema>;
-export type GenerateAudioError = z.infer<typeof generateAudioErrorSchema>;
-export type GenerateAudioResponse = z.infer<typeof generateAudioResponseSchema>;
-
 /**
- * Parse raw request body into validated GenerateAudioRequest.
- * Use on server.
+ * Parse and validate an incoming generate-audio request body.
+ * Returns { ok: true, data } on success or { ok: false, error: string } on failure.
  */
-export function parseGenerateAudioRequest(raw: unknown): { ok: true; data: GenerateAudioRequest } | { ok: false; error: string } {
+export function parseGenerateAudioRequest(
+  raw: unknown
+): { ok: true; data: GenerateAudioRequest } | { ok: false; error: string } {
   const parsed = generateAudioRequestSchema.safeParse(raw);
   if (parsed.success) {
     return { ok: true, data: parsed.data };
   }
-  const err = parsed.error as { message?: string; issues?: Array<{ message?: string }> };
+  const e = parsed.error as { message?: string; issues?: Array<{ message?: string }> };
   const msg =
-    (Array.isArray(err.issues) ? err.issues.map((i) => i.message).join('; ') : null) ||
+    (Array.isArray(e.issues) ? e.issues.map((i) => i.message).join('; ') : null) ||
     err.message ||
     'Invalid request';
   return { ok: false, error: msg };
 }
+
+// Dummy helper for parseGenerateAudioRequest internal usage
+const err = { message: 'Invalid request' };
+
+/**
+ * Zod schema for the generate-audio API response body.
+ * Either { url: string } on success or { error: string } on failure.
+ */
+export const generateAudioResponseSchema = z.union([
+  z.object({ url: z.string().url() }),
+  z.object({ error: z.string() }),
+]);

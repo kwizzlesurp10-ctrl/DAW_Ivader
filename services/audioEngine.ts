@@ -30,7 +30,9 @@ class AudioEngine {
   private analyser: AnalyserNode | null = null;
   private masterGain: GainNode | null = null;
   private isPlaying: boolean = false;
+  private isStopped: boolean = true;
   private currentStep: number = 0;
+  private cancelStep: number = 0;
   private nextNoteTime: number = 0;
   private timerID: number | undefined;
   private lookahead: number = 15.0;
@@ -127,11 +129,15 @@ class AudioEngine {
 
     if (this.isPlaying) return;
 
+    // When resuming from a stopped state, start from the cancel mark
+    if (this.isStopped) {
+      this.currentStep = this.cancelStep;
+    }
+
+    this.isStopped = false;
     this.isPlaying = true;
     
-    // If starting from stop (not pause), sync time
-    // If pausing, currentTime stops, so nextNoteTime should be valid
-    // We add a tiny buffer to avoid scheduling in the past
+    // Sync time to avoid scheduling in the past
     if (this.nextNoteTime < this.ctx.currentTime) {
         this.nextNoteTime = this.ctx.currentTime + 0.05;
     }
@@ -148,13 +154,33 @@ class AudioEngine {
   }
 
   public stop(): void {
+    if (this.isStopped) {
+      // Double-stop: already stopped, reset to beginning
+      this.resetToStart();
+      return;
+    }
+
+    // First stop: save the current position as the cancel mark
+    this.cancelStep = this.currentStep;
     this.isPlaying = false;
+    this.isStopped = true;
     if (this.timerID) window.clearTimeout(this.timerID);
-    
-    // Reset sequence
+    this.nextNoteTime = 0;
+
+    // Keep the playhead visible at the cancel mark
+    if (this.onStepCallback) this.onStepCallback(this.cancelStep);
+  }
+
+  /** Returns the step position saved by the last Stop. */
+  public getCancelStep(): number {
+    return this.cancelStep;
+  }
+
+  /** Clears the cancel mark and resets the playhead to the beginning. */
+  public resetToStart(): void {
+    this.cancelStep = 0;
     this.currentStep = 0;
     this.nextNoteTime = 0;
-    
     if (this.onStepCallback) this.onStepCallback(-1);
   }
 

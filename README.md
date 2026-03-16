@@ -1,93 +1,45 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # DOOM DAW — IRKEN Audio Lab
 
-A modern, in-browser DAW with AI-assisted generation, step sequencer, and full project persistence.
+A modern, in-browser Digital Audio Workstation (DAW) with AI-assisted generation, step sequencer, and full project persistence.
 
-View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYqp
+## Project Overview
 
----
+- **Purpose:** A fully functional web-based DAW that integrates AI music generation (Stable Audio 2.5) to allow users to create and arrange tracks.
+- **Main Technologies:**
+    - **Frontend:** React 19, Vite 6, TypeScript 5.8, Tailwind CSS.
+    - **Audio:** Web Audio API for synthesis, scheduling, and playback.
+    - **AI Generation:** Stable Audio 2.5 via Replicate (serverless API).
+    - **State Management:** Custom `useUndoRedo` hook for song state and history.
+    - **Validation:** Zod for runtime type checking of external data and imports.
+    - **Error Handling:** `Result<T, E>` pattern for robust error management without exceptions in core logic.
 
-## Features
+## Architecture & Data Flow
 
-- **Sequencer**: 8/16/32-step grid, click steps to add/remove notes, per-track mute/solo
-- **Tracks**: Add, remove, duplicate, reorder; synth/bass/drums + **audio** (generated clips); per-track volume, pan, ADSR, filter, waveform
-- **Playback**: Play / Pause / Stop, BPM 1–999, swing 0–100%, optional metronome, master volume
-- **Generate (text-to-audio)**: Type a description and press **Generate**. Uses **Stable Audio 2.5** via Replicate to create an audio clip and adds it as a track; plays from the start of each loop.
-- **Persistence**: Save/load in browser (localStorage), export/import JSON
-- **Undo/Redo**: Full history for all song edits
-- **Keyboard**: Space = play/pause, S = stop
+- **Song State:** Managed in `App.tsx` via `useUndoRedo`. Mutations are handled by pure functions in `lib/songMutations.ts`.
+- **Audio Engine:** A singleton (`services/audioEngine.ts`) that syncs with the song data and handles real-time playback and synthesis.
+- **Persistence:** `services/storageService.ts` handles saving/loading to `localStorage` and exporting/importing JSON files.
+- **AI Integration:** `textToAudioService.ts` calls a Vercel serverless function (`api/generate-audio.ts`) which interacts with Replicate.
+- **Validation:** All external inputs (API responses, file imports) are validated against Zod schemas in `schemas/`.
 
----
+## Development Workflow
 
-## Quick start (production)
+### Building and Running
+- **Install Dependencies:** `npm install` or `pnpm install`
+- **Development Server:** `npm run dev` (use `vercel dev` if you need to test the `/api` routes locally).
+- **Production Build:** `npm run build`
+- **Preview Production Build:** `npm run preview`
+- **Deploy to Vercel:** `npx vercel --prod`
 
-**Prerequisites:** Node.js 18+
+### Testing & Validation
+- **Run All Tests:** `npm run test` (uses Vitest).
+- **Watch Mode:** `npm run test:watch`
+- **Coverage:** `npm run test:coverage`
+- **Validate Blueprint:** `npm run validate:blueprint` (checks architecture and coverage thresholds).
 
-```bash
-# 1. Install
-npm ci
+## Development Conventions
 
-# 2. Environment (required for Generate / text-to-audio)
-cp .env.example .env.local
-# Edit .env.local: set REPLICATE_API_TOKEN=your_token
-# (Optional: GEMINI_API_KEY for other features)
-
-# 3. Verify
-npm run test
-npm run build
-
-# 4. Run locally
-npm run dev
-# → http://localhost:3000
-```
-
-**Production build & serve**
-
-```bash
-npm run build
-npm run preview
-# → http://localhost:4173 (serves dist/)
-```
-
-**Deploy to Vercel** (recommended)
-
-```bash
-npx vercel login
-npx vercel --prod
-```
-
-Set **`REPLICATE_API_TOKEN`** in Vercel project Settings → Environment Variables (required for Generate). See [DEPLOY.md](./DEPLOY.md) for full instructions and custom domain setup.
-
----
-
-## Generate audio setup (Replicate)
-
-The **Generate** button uses Stable Audio 2.5 via Replicate. To enable it:
-
-1. **Get a Replicate token**  
-   Go to [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens), sign in, and create an API token.
-
-
-2. **Local**
-   - In project root create or edit `.env.local` and add:
-     ```bash
-     REPLICATE_API_TOKEN=your_token
-     ```
-   - Generate only works when the API is reachable:
-     - **Option A:** Run the app (and the `/api` route) with **`vercel dev`** (Vercel CLI), then use the URL it prints.
-     - **Option B:** Deploy to Vercel and use the deployed URL (see below).
-
-3. **Vercel (production)**
-   - In the Vercel project: **Settings → Environment Variables** add **`REPLICATE_API_TOKEN`** with your token.
-   - **Redeploy** (e.g. `npx vercel --prod` or push to the connected repo) so the serverless function uses the new variable.
-
----
-
-## Run locally (dev)
-
-1. **Install:** `npm install`
-2. **Env:** Set `REPLICATE_API_TOKEN` in `.env.local` (or `.env`) for Generate. Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens).
-3. **Run:** For Generate to work locally, use **`vercel dev`** (not only `npm run dev`). Otherwise use the deployed app.
+- **Strict Typing:** No `any` allowed; explicit return types on all public functions.
+- **Immutable State:** All song modifications MUST go through the pure functions in `lib/songMutations.ts` and be applied via `setSong` from the `useUndoRedo` hook.
+- **Result Pattern:** Use the `Result` type for functions that can fail, especially those involving I/O or parsing.
+- **Component Styling:** Use Tailwind CSS for all UI styling.
+- **Iconography:** Use `lucide-react` for UI icons.
