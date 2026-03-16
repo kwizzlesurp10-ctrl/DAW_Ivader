@@ -77,16 +77,13 @@ export function parseGenerateAudioRequest(
   if (parsed.success) {
     return { ok: true, data: parsed.data };
   }
-  const e = parsed.error as { message?: string; issues?: Array<{ message?: string }> };
+  const e = parsed.error;
   const msg =
-    (Array.isArray(e.issues) ? e.issues.map((i) => i.message).join('; ') : null) ||
-    err.message ||
+    (Array.isArray(e.issues) ? e.issues.map((i) => i.message).filter(Boolean).join('; ') : null) ||
+    e.message ||
     'Invalid request';
   return { ok: false, error: msg };
 }
-
-// Dummy helper for parseGenerateAudioRequest internal usage
-const err = { message: 'Invalid request' };
 
 /**
  * Zod schema for the generate-audio API response body.

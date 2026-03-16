@@ -93,18 +93,76 @@ describe('api/generate-audio (communication layer)', () => {
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('prompt') }));
     });
+
+    it('accepts prompt only and defaults duration', async () => {
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'succeeded', output: 'https://x.com/a.wav' });
+
+      const res = await post({ prompt: 'test' });
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(mockPredictionsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: expect.objectContaining({ prompt: 'test', duration: 15 }),
+        })
+      );
+    });
+
+    it('accepts old "large" model version for backward compatibility', async () => {
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'succeeded', output: 'https://x.com/a.wav' });
+
+      const res = await post({ prompt: 'test', model_version: 'large' });
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(mockPredictionsCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'stability-ai/stable-audio-2.5'
+        })
+      );
+    });
   });
 
   describe('happy path', () => {
-    it('returns 200 with url when Replicate succeeds', async () => {
+    it('returns 200 with url when Replicate succeeds (direct string)', async () => {
       const url = 'https://replicate.delivery/xyz.wav';
-      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'starting' });
-      mockPredictionsGet.mockResolvedValue({ id: 'p1', status: 'succeeded', output: url });
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'succeeded', output: url });
 
       const res = await post({ prompt: 'dark bass' });
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ url });
+    });
+
+    it('returns 200 with url when Replicate succeeds (array)', async () => {
+      const url = 'https://replicate.delivery/xyz.wav';
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'succeeded', output: [url] });
+
+      const res = await post({ prompt: 'dark bass' });
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ url });
+    });
+
+    it('returns 200 with url when Replicate succeeds (object with audio key)', async () => {
+      const url = 'https://replicate.delivery/xyz.wav';
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'succeeded', output: { audio: url } });
+
+      const res = await post({ prompt: 'dark bass' });
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ url });
+    });
+
+    it('polls until success', async () => {
+      const url = 'https://replicate.delivery/xyz.wav';
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'starting' });
+      mockPredictionsGet.mockResolvedValueOnce({ id: 'p1', status: 'processing' })
+                         .mockResolvedValueOnce({ id: 'p1', status: 'succeeded', output: url });
+
+      const res = await post({ prompt: 'dark bass' });
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ url });
+      expect(mockPredictionsGet).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -117,6 +175,24 @@ describe('api/generate-audio (communication layer)', () => {
 
       expect(res.status).toHaveBeenCalledWith(502);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('failed') }));
+    });
+
+    it('returns 502 when Replicate succeeds but no URL is returned', async () => {
+      mockPredictionsCreate.mockResolvedValue({ id: 'p1', status: 'succeeded', output: {} });
+
+      const res = await post({ prompt: 'test' });
+
+      expect(res.status).toHaveBeenCalledWith(502);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('no URL') }));
+    });
+
+    it('returns 500 on fatal error', async () => {
+      mockPredictionsCreate.mockRejectedValue(new Error('Network error'));
+
+      const res = await post({ prompt: 'test' });
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining('Network error') }));
     });
   });
 });

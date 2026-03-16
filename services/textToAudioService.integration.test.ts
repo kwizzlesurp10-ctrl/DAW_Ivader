@@ -26,6 +26,13 @@ describe('textToAudioService (communication layer)', () => {
       expect(isErr(result)).toBe(true);
       expect(mockFetch).not.toHaveBeenCalled();
     });
+
+    it('returns err for too long prompt', async () => {
+      const result = await generateAudioFromText('a'.repeat(GENERATE_AUDIO_PROMPT_MAX_LENGTH + 1));
+
+      expect(isErr(result)).toBe(true);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('happy path', () => {
@@ -49,6 +56,84 @@ describe('textToAudioService (communication layer)', () => {
           body: expect.stringContaining('"prompt":"dark bass"'),
         })
       );
+    });
+  });
+
+  describe('error handling', () => {
+    it('returns err when API returns 404', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        text: () => Promise.resolve(''),
+      });
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('vercel dev');
+    });
+
+    it('returns err when API returns 500 with error message', async () => {
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        text: () => Promise.resolve(JSON.stringify({ error: 'Replicate failed' })),
+      });
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toBe('Replicate failed');
+    });
+
+    it('returns err when API returns 200 but missing url', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: () => Promise.resolve(JSON.stringify({})),
+      });
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('no audio URL');
+    });
+
+    it('returns err when API returns invalid JSON', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: () => Promise.resolve('invalid json'),
+      });
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Invalid response');
+    });
+
+    it('returns err on fetch timeout', async () => {
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      mockFetch.mockRejectedValue(abortError);
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('timed out');
+    });
+
+    it('returns err on network failure', async () => {
+      mockFetch.mockRejectedValue(new Error('Failed to fetch'));
+
+      const result = await generateAudioFromText('test');
+
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.message).toContain('Network error');
     });
   });
 });
