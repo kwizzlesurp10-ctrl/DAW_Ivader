@@ -518,10 +518,10 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen p-4 md:p-6 relative z-10 flex flex-col max-h-screen">
+    <div className="min-h-screen p-2 md:p-4 lg:p-6 relative z-10 flex flex-col max-h-screen overflow-hidden">
       
       {/* Header / Prompt Bar */}
-      <div className="max-w-[1400px] w-full mx-auto mb-6 flex flex-col md:flex-row gap-6 items-stretch shrink-0">
+      <div className="max-w-[1400px] w-full mx-auto mb-4 lg:mb-6 flex flex-col xl:flex-row gap-4 lg:gap-6 items-stretch shrink-0">
         <div className="cyber-panel flex-1 flex flex-col p-1">
             <div className="flex items-center justify-between px-2 py-1 bg-[#39ff14]/10 mb-1">
                 <label className="text-[10px] text-[#39ff14] font-bold tracking-widest flex items-center gap-2">
@@ -533,7 +533,7 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            <div className="flex gap-2 p-2 items-end">
+            <div className="flex flex-wrap lg:flex-nowrap gap-2 p-2 items-end">
                 <div className="flex flex-col gap-1 shrink-0">
                     <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">AI_MODE</label>
                     <div className="flex gap-1">
@@ -553,63 +553,65 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="w-px h-8 bg-gray-800 mx-1 mb-1"></div>
+                <div className="hidden lg:block w-px h-8 bg-gray-800 mx-1 mb-1"></div>
 
-                <div className="flex flex-col gap-1 shrink-0">
-                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">LENGTH</label>
-                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
-                        <input 
-                            type="range" 
-                            min={1} 
-                            max={45} 
-                            value={generationDuration} 
-                            onChange={(e) => setGenerationDuration(Number(e.target.value))}
-                            className="w-16 h-1 accent-[#39ff14]"
-                        />
-                        <span className="text-[10px] font-mono text-[#39ff14] w-6">{generationDuration}s</span>
+                <div className="flex flex-wrap gap-2 shrink-0">
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">LENGTH</label>
+                        <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
+                            <input 
+                                type="range" 
+                                min={1} 
+                                max={45} 
+                                value={generationDuration} 
+                                onChange={(e) => setGenerationDuration(Number(e.target.value))}
+                                className="w-16 h-1 accent-[#39ff14]"
+                            />
+                            <span className="text-[10px] font-mono text-[#39ff14] w-6">{generationDuration}s</span>
+                        </div>
                     </div>
-                </div>
 
-                <div className="flex flex-col gap-1 shrink-0">
-                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">STEPS</label>
-                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]" title="Model limit: 8 steps max">
-                        <input 
-                            type="range" 
-                            min={4} 
-                            max={8} 
-                            value={generationSteps} 
-                            onChange={(e) => setGenerationSteps(Number(e.target.value))}
-                            className="w-16 h-1 accent-[#b026ff]"
-                        />
-                        <span className="text-[10px] font-mono text-[#b026ff] w-4">{generationSteps}</span>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">STEPS</label>
+                        <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]" title="Model limit: 8 steps max">
+                            <input 
+                                type="range" 
+                                min={4} 
+                                max={8} 
+                                value={generationSteps} 
+                                onChange={(e) => setGenerationSteps(Number(e.target.value))}
+                                className="w-16 h-1 accent-[#b026ff]"
+                            />
+                            <span className="text-[10px] font-mono text-[#b026ff] w-4">{generationSteps}</span>
+                        </div>
                     </div>
-                </div>
 
-                <div className="flex flex-col gap-1 shrink-0">
-                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">CREATIVITY</label>
-                    <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
-                        <input 
-                            type="range" 
-                            min={1} 
-                            max={20} 
-                            step={0.5}
-                            value={generationCfgScale} 
-                            onChange={(e) => setGenerationCfgScale(Number(e.target.value))}
-                            className="w-16 h-1 accent-[#ff0055]"
-                        />
-                        <span className="text-[10px] font-mono text-[#ff0055] w-4">{generationCfgScale}</span>
+                    <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">CREATIVITY</label>
+                        <div className="flex items-center gap-2 bg-black/30 border border-gray-800 px-2 py-1 h-[26px]">
+                            <input 
+                                type="range" 
+                                min={1} 
+                                max={20} 
+                                step={0.5}
+                                value={generationCfgScale} 
+                                onChange={(e) => setGenerationCfgScale(Number(e.target.value))}
+                                className="w-16 h-1 accent-[#ff0055]"
+                            />
+                            <span className="text-[10px] font-mono text-[#ff0055] w-4">{generationCfgScale}</span>
+                        </div>
                     </div>
                 </div>
                 
-                <div className="w-px h-8 bg-gray-800 mx-1 mb-1"></div>
+                <div className="hidden lg:block w-px h-8 bg-gray-800 mx-1 mb-1"></div>
 
-                <div className="flex-1 flex flex-col gap-1">
+                <div className="flex-1 flex flex-col gap-1 min-w-[200px]">
                     <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">PROMPT_SEQUENCE</label>
                     <input 
                         type="text" 
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
-                        placeholder="Enter description (e.g. 'Epic cinematic orchestral with soaring strings, 120 BPM') ..."
+                        placeholder="Enter description (e.g. 'Epic cinematic orchestral...') ..."
                         className="bg-black/50 border border-gray-800 w-full text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                         onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                     />
@@ -618,7 +620,7 @@ const App: React.FC = () => {
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="bg-[#39ff14] text-black font-bold px-6 py-2 h-[46px] hover:bg-[#b026ff] hover:text-white transition-all duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 clip-slant-right shadow-[0_0_15px_rgba(57,255,20,0.4)] hover:shadow-[0_0_20px_rgba(176,38,255,0.6)]"
+                    className="bg-[#39ff14] text-black font-bold px-6 py-2 h-[46px] hover:bg-[#b026ff] hover:text-white transition-all duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 clip-slant-right shadow-[0_0_15px_rgba(57,255,20,0.4)] hover:shadow-[0_0_20px_rgba(176,38,255,0.6)] shrink-0"
                 >
                     {isGenerating ? <Activity className="animate-spin" /> : <Wand2 size={18} />}
                     {isGenerating ? "PROCESSING..." : "GENERATE"}
@@ -626,7 +628,7 @@ const App: React.FC = () => {
             </div>
         </div>
         
-        <div className="cyber-panel flex flex-wrap items-center gap-4 p-4 px-6 min-w-[320px] justify-between bg-black/80">
+        <div className="cyber-panel flex flex-wrap items-center gap-4 p-4 px-6 min-w-[320px] justify-between bg-black/80 lg:shrink-0">
             <div className="flex items-center gap-3">
                 <div className="text-center">
                     <div className="text-[10px] text-[#b026ff] tracking-widest mb-1">BPM</div>
@@ -704,21 +706,21 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-[1400px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
+      <div className="max-w-[1400px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 flex-1 min-h-0">
         
         {/* Left Col: Visualizer & Sequencer */}
-        <div className="lg:col-span-8 flex flex-col gap-6 h-full min-h-0">
+        <div className="lg:col-span-7 xl:col-span-8 flex flex-col gap-4 lg:gap-6 h-full min-h-0">
             <div className="cyber-panel p-1 shrink-0 bg-black/90">
                 <Visualizer />
             </div>
             
-            <div className="cyber-panel flex-1 p-4 relative overflow-y-auto flex flex-col bg-black/80 min-h-[300px]">
-                <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2">
+            <div className="cyber-panel flex-1 p-3 lg:p-4 relative overflow-y-auto flex flex-col bg-black/80 min-h-[350px]">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b border-gray-800 pb-2 shrink-0">
                     <div className="text-xs text-[#39ff14] font-bold tracking-widest flex items-center gap-2 neon-text-green">
                         <Zap size={14} /> SEQUENCE_MATRIX
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
-                        <span className="text-[10px] text-gray-500">TRACKS: {song.tracks.length}</span>
+                        <span className="text-[10px] text-gray-500 whitespace-nowrap">TRACKS: {song.tracks.length}</span>
                         <div className="flex items-center gap-1">
                             <span className="text-[10px] text-gray-500">STEPS:</span>
                             {([8, 16, 32] as const).map((n) => (
@@ -734,7 +736,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="space-y-3 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
                     {song.tracks.map((track) => {
                         const isDragging = draggedTrackId === track.id;
                         const isDropTarget = dropTargetTrackId === track.id;
@@ -787,14 +789,14 @@ const App: React.FC = () => {
         </div>
 
         {/* Right Col: Synth Controls */}
-        <div className="lg:col-span-4 h-full min-h-0 flex flex-col gap-6">
+        <div className="lg:col-span-5 xl:col-span-4 h-full min-h-0 flex flex-col gap-4 lg:gap-6">
             {/* Audio Sampler Panel */}
             <div className="shrink-0">
                 <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} preloadedAudio={samplerPreload} />
             </div>
             
             {/* Synth Controls Panel */}
-            <div className="cyber-panel flex-1 p-4 flex flex-col relative bg-black/90 overflow-hidden min-h-[400px]">
+            <div className="cyber-panel flex-1 p-3 lg:p-4 flex flex-col relative bg-black/90 overflow-hidden min-h-[400px]">
                  <div className="absolute top-0 right-0 p-2 opacity-30 pointer-events-none">
                     <Activity size={100} className="text-[#39ff14]/10" />
                  </div>

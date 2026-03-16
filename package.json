@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "node scripts/check-node.js && vite",
     "dev:full": "vercel dev",
+    "dev:preview": "npm run build && npm run preview",
     "build": "node scripts/check-node.js && vite build",
     "build:nvm": "bash scripts/build-with-nvm.sh build",
     "build:raw": "vite build",
