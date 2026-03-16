@@ -49,8 +49,8 @@ npm run dev
 
 ```bash
 npm run build
-npm run preview
-# → http://localhost:4173 (serves dist/)
+npm start
+# → http://localhost:3000 (serves dist/ + /api/generate-audio)
 ```
 
 **Deploy to Vercel** (recommended)

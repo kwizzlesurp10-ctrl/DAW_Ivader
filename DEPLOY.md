@@ -47,7 +47,8 @@ Set `REPLICATE_API_TOKEN` to enable audio generation. Redeploy after adding env 
 
 - [ ] **Verify API parameter names** — `api/generate-audio.ts` sends `prompt`, `duration`, `cfg_scale`, `steps` to Replicate Stable Audio 2.5 (confirmed in PR #54)
 - [ ] **Run tests** — `npm run test` (all 214+ unit/integration tests must pass)
-- [ ] **Build** — `npm run build` succeeds with no errors
+- [ ] **Build** — `npm run build` succeeds with no errors (builds SPA + compiles API handler)
+- [ ] **Local production test** — `npm start` serves the built SPA and API at `http://localhost:3000`; verify `/api/generate-audio` responds (not 404)
 - [ ] **Set environment variables** in Vercel Dashboard → Settings → Environment Variables:
   - `REPLICATE_API_TOKEN` — **Required** for audio generation
   - `OPEN_ROUTER_API_KEY` — Optional, for AI song structure
