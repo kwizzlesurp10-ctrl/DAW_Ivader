@@ -30,9 +30,10 @@ In Vercel Dashboard → Project → Settings → Environment Variables:
 | Name | Value |
 |------|-------|
 | `OPEN_ROUTER_API_KEY` | Your API key from [OpenRouter](https://openrouter.ai/keys) (for AI song structure, optional) |
-| `REPLICATE_API_TOKEN` | **Required.** Token from [Replicate](https://replicate.com/account/api-tokens). Uses Stability AI Stable Audio 2.5 via Replicate API. |
+| `REPLICATE_API_TOKEN` | Token from [Replicate](https://replicate.com/account/api-tokens). Uses Stability AI Stable Audio 2.5. **Recommended.** |
+| `HUGGINGFACE_API_TOKEN` | Token from [HuggingFace](https://huggingface.co/settings/tokens) (Inference API access). Used for: (1) audio fallback via Meta MusicGen when `REPLICATE_API_TOKEN` is absent; (2) the separate **HF Creative Engine** (`/api/hf-generate`) for text generation (Mistral-7B-Instruct) and image generation (FLUX.1-schnell). |
 
-Set `REPLICATE_API_TOKEN` to enable audio generation. Redeploy after adding env vars so the build uses them.
+Set at least one of `REPLICATE_API_TOKEN` or `HUGGINGFACE_API_TOKEN` to enable audio generation. Redeploy after adding env vars so the build uses them.
 
 **Do not set in production (Vercel or any prod env):** `VITE_AUDIO_MOCK`, `VITE_SIMULATE_AUDIO`. These are dev-only; if set in production the app will throw at runtime. Leave them unset for deployment.
 

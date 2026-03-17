@@ -10,6 +10,37 @@ import {
 /** Stability AI Stable Audio 2.5 model on Replicate. */
 const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 
+/** Meta MusicGen (misc-dataset) model via HuggingFace Inference API. */
+const MUSICGEN_HF_MODEL = 'facebook/musicgen-large';
+const HF_INFERENCE_URL = `https://api-inference.huggingface.co/models/${MUSICGEN_HF_MODEL}`;
+
+/**
+ * Generate audio using the HuggingFace Inference API (MusicGen).
+ * Returns a base64 data URL containing the binary audio response.
+ */
+async function generateWithHuggingFace(
+  token: string,
+  prompt: string,
+  duration: number
+): Promise<string> {
+  const response = await fetch(HF_INFERENCE_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ inputs: prompt, parameters: { duration } }),
+  });
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`HuggingFace API error (${response.status}): ${body}`);
+  }
+  const contentType = response.headers.get('content-type') ?? 'audio/wav';
+  const buffer = await response.arrayBuffer();
+  const base64 = Buffer.from(buffer).toString('base64');
+  return `data:${contentType};base64,${base64}`;
+}
+
 /**
  * Extract a plain URL string from a Replicate output value.
  * Handles: plain string, array of strings, FileOutput object with url() method
@@ -80,11 +111,14 @@ async function handleRequest(request: Request): Promise<Response> {
   }
 
   const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
-  if (!replicateToken) {
-    return jsonResponse({ error: 'No audio backend configured. Set REPLICATE_API_TOKEN in your environment variables.' }, 503);
-  }
+  const hfToken = process.env.HUGGINGFACE_API_TOKEN?.trim();
 
-  const replicate = new Replicate({ auth: replicateToken, useFileOutput: false });
+  if (!replicateToken && !hfToken) {
+    return jsonResponse(
+      { error: 'No audio backend configured. Set REPLICATE_API_TOKEN or HUGGINGFACE_API_TOKEN in your environment variables.' },
+      503
+    );
+  }
 
   let rawBody: unknown;
   try { rawBody = await request.json(); }
@@ -94,22 +128,46 @@ async function handleRequest(request: Request): Promise<Response> {
   if (!parsed.ok) return jsonResponse({ error: parsed.error }, 400);
 
   const { prompt, duration } = parsed.data;
-  console.log(`[generate-audio] running: prompt="${prompt}" duration=${duration}s`);
 
-  // Single-shot: replicate.run() waits for the prediction to complete and returns output directly.
-  let output: unknown;
+  // Prefer Replicate when both tokens are present; fall back to HuggingFace.
+  if (replicateToken) {
+    console.log(`[generate-audio] replicate: prompt="${prompt}" duration=${duration}s`);
+    const replicate = new Replicate({ auth: replicateToken, useFileOutput: false });
+
+    // Single-shot: replicate.run() waits for the prediction to complete and returns output directly.
+    let output: unknown;
+    try {
+      output = await replicate.run(STABLE_AUDIO_MODEL, {
+        input: {
+          prompt,
+          duration,
+          cfg_scale: 7,
+          steps: 8,
+        },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[generate-audio] generation failed:', message);
+      return jsonResponse({ error: `Generation failed: ${message}` }, 502);
+    }
+
+    const url = extractUrl(output);
+    if (!url) {
+      console.error('[generate-audio] no audio URL in output:', JSON.stringify(output));
+      return jsonResponse({ error: 'Model returned no audio URL' }, 502);
+    }
+
+    return jsonResponse({ url }, 200);
+  }
+
+  // HuggingFace fallback — MusicGen (misc-dataset model).
+  console.log(`[generate-audio] huggingface: prompt="${prompt}" duration=${duration}s`);
+  let audioDataUrl: string;
   try {
-    output = await replicate.run(STABLE_AUDIO_MODEL, {
-      input: {
-        prompt,
-        duration,
-        cfg_scale: 7,
-        steps: 8,
-      },
-    });
+    audioDataUrl = await generateWithHuggingFace(hfToken!, prompt, duration);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[generate-audio] generation failed:', message);
+    console.error('[generate-audio] HuggingFace generation failed:', message);
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
   }
 

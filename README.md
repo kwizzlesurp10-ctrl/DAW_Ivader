@@ -49,6 +49,8 @@ npm run dev
 
 ```bash
 npm run build
+npm run preview
+# → http://localhost:4173 (serves dist/ only — API routes not available; use npm run dev:full or deploy to Vercel)
 npm start
 # → http://localhost:3000 (serves dist/ + /api/generate-audio)
 ```
