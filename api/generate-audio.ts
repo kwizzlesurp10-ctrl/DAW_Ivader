@@ -171,5 +171,13 @@ async function handleRequest(request: Request): Promise<Response> {
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
   }
 
-  return jsonResponse({ url: audioDataUrl }, 200);
+  const url = extractUrl(output);
+  if (!url) {
+    let outputStr: string;
+    try { outputStr = JSON.stringify(output); } catch { outputStr = String(output); }
+    console.error('[generate-audio] no audio URL in output:', outputStr);
+    return jsonResponse({ error: 'Model returned no audio URL' }, 502);
+  }
+
+  return jsonResponse({ url }, 200);
 }
