@@ -2,13 +2,18 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
   "buildCommand": "npm run build",
+  "devCommand": "vite --port $PORT",
   "outputDirectory": "dist",
   "framework": null,
   "installCommand": "npm ci",
   "functions": {
     "api/generate-audio.ts": {
       "maxDuration": 300,
-        "includeFiles": "schemas/**"
+      "includeFiles": "schemas/**"
+    },
+    "api/hf-generate.ts": {
+      "maxDuration": 60,
+      "includeFiles": "schemas/**"
     }
   },
   "headers": [

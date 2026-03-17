@@ -1,6 +1,6 @@
 # Deploy DOOM DAW to Vercel
 
-**Deployment uses real audio only:** the audio engine and generate-audio API use the real Web Audio API and Replicate (recommended) or HuggingFace (fallback) (MusicGen). No mock or simulation modes are used in production; they are disabled for deployment.
+**Deployment uses real audio only:** the audio engine and generate-audio API use the real Web Audio API and Replicate (Stability AI Stable Audio 2.5). No mock or simulation modes are used in production; they are disabled for deployment.
 
 ## Quick Deploy (CLI)
 
@@ -30,8 +30,8 @@ In Vercel Dashboard → Project → Settings → Environment Variables:
 | Name | Value |
 |------|-------|
 | `OPEN_ROUTER_API_KEY` | Your API key from [OpenRouter](https://openrouter.ai/keys) (for AI song structure, optional) |
-| `REPLICATE_API_TOKEN` | **Recommended.** Token from [Replicate](https://replicate.com/account/api-tokens). Uses Meta MusicGen models via Replicate API. Takes priority when both tokens are set. |
-| `HUGGINGFACE_API_TOKEN` | **Fallback.** Token for Generate (text-to-audio) from [HuggingFace](https://huggingface.co/settings/tokens). Used only when `REPLICATE_API_TOKEN` is not set. |
+| `REPLICATE_API_TOKEN` | Token from [Replicate](https://replicate.com/account/api-tokens). Uses Stability AI Stable Audio 2.5. **Recommended.** |
+| `HUGGINGFACE_API_TOKEN` | Token from [HuggingFace](https://huggingface.co/settings/tokens) (Inference API access). Used for: (1) audio fallback via Meta MusicGen when `REPLICATE_API_TOKEN` is absent; (2) the separate **HF Creative Engine** (`/api/hf-generate`) for text generation (Mistral-7B-Instruct) and image generation (FLUX.1-schnell). |
 
 Set at least one of `REPLICATE_API_TOKEN` or `HUGGINGFACE_API_TOKEN` to enable audio generation. Redeploy after adding env vars so the build uses them.
 
@@ -43,6 +43,24 @@ Set at least one of `REPLICATE_API_TOKEN` or `HUGGINGFACE_API_TOKEN` to enable a
 2. Add your domain (e.g. `yourdomain.com`)
 3. Add the DNS records shown (A or CNAME)
 4. Wait for DNS propagation; SSL is automatic
+
+## Deployment TO-DO Checklist
+
+- [ ] **Verify API parameter names** — `api/generate-audio.ts` sends `prompt`, `duration`, `cfg_scale`, `steps` to Replicate Stable Audio 2.5 (confirmed in PR #54)
+- [ ] **Run tests** — `npm run test` (all 214+ unit/integration tests must pass)
+- [ ] **Build** — `npm run build` succeeds with no errors (builds SPA + compiles API handler)
+- [ ] **Local production test** — `npm start` serves the built SPA and API at `http://localhost:3000`; verify `/api/generate-audio` responds (not 404)
+- [ ] **Set environment variables** in Vercel Dashboard → Settings → Environment Variables:
+  - `REPLICATE_API_TOKEN` — **Required** for audio generation
+  - `OPEN_ROUTER_API_KEY` — Optional, for AI song structure
+- [ ] **Do NOT set** `VITE_AUDIO_MOCK` or `VITE_SIMULATE_AUDIO` in production
+- [ ] **Add GitHub Actions secrets** (for CI/CD deploy):
+  - `VERCEL_TOKEN`
+  - `VERCEL_ORG_ID`
+  - `VERCEL_PROJECT_ID`
+- [ ] **Deploy** — `npx vercel --prod` or push to `main` for automatic deploy
+- [ ] **Verify** — App loads at deployed URL; test Generate flow end-to-end
+- [ ] **Custom domain** (optional) — Add domain in Vercel Dashboard → Domains, configure DNS
 
 ## Live URL
 

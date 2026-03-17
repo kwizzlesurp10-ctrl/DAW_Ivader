@@ -1,6 +1,6 @@
 /**
  * Integration tests for generate-audio API communication layer.
- * Mocks Replicate — tests request parsing, response shape, status codes, CORS.
+ * Mocks Replicate and fetch — tests request parsing, response shape, status codes, CORS.
  * @vitest-environment node
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -18,6 +18,7 @@ describe('api/generate-audio (communication layer)', () => {
   beforeEach(async () => {
     vi.resetModules();
     process.env.REPLICATE_API_TOKEN = 'test-token';
+    delete process.env.HUGGINGFACE_API_TOKEN;
     const mod = await import('./generate-audio');
     handler = mod.default;
     mockRun.mockReset();
@@ -25,6 +26,7 @@ describe('api/generate-audio (communication layer)', () => {
 
   afterEach(() => {
     delete process.env.REPLICATE_API_TOKEN;
+    delete process.env.HUGGINGFACE_API_TOKEN;
     vi.restoreAllMocks();
   });
 
@@ -77,8 +79,9 @@ describe('api/generate-audio (communication layer)', () => {
   });
 
   describe('auth', () => {
-    it('returns 503 when REPLICATE_API_TOKEN is not set', async () => {
+    it('returns 503 when neither REPLICATE_API_TOKEN nor HUGGINGFACE_API_TOKEN is set', async () => {
       delete process.env.REPLICATE_API_TOKEN;
+      delete process.env.HUGGINGFACE_API_TOKEN;
       vi.resetModules();
       const mod = await import('./generate-audio');
       const h = mod.default;
@@ -190,7 +193,16 @@ describe('api/generate-audio (communication layer)', () => {
     });
 
     it('returns 200 when Replicate returns FileOutput with url() method', async () => {
-      const mockFileOutput = { url: () => 'https://replicate.delivery/out.mp3' };
+      const mockFileOutput = { url: () => new URL('https://replicate.delivery/out.mp3') };
+      mockRun.mockResolvedValue(mockFileOutput);
+      const res = await post({ prompt: 'test' });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.url).toBe('https://replicate.delivery/out.mp3');
+    });
+
+    it('returns 200 when FileOutput url() returns a URL object', async () => {
+      const mockFileOutput = { url: () => new URL('https://replicate.delivery/out.mp3') };
       mockRun.mockResolvedValue(mockFileOutput);
       const res = await post({ prompt: 'test' });
       expect(res.status).toBe(200);
@@ -204,6 +216,20 @@ describe('api/generate-audio (communication layer)', () => {
       expect(mockRun).toHaveBeenCalledWith(
         'stability-ai/stable-audio-2.5',
         expect.any(Object)
+      );
+    });
+
+    it('sends cfg_scale and steps to Replicate', async () => {
+      mockRun.mockResolvedValue('https://replicate.delivery/out.mp3');
+      await post({ prompt: 'chill beats' });
+      expect(mockRun).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          input: expect.objectContaining({
+            cfg_scale: 7,
+            steps: 8,
+          }),
+        })
       );
     });
   });
@@ -244,6 +270,134 @@ describe('api/generate-audio (communication layer)', () => {
       expect(res.status).toBe(500);
       const data = await res.json();
       expect(data.error).toBe('Invalid request');
+    });
+
+    it('returns 500 with descriptive error when handleRequest throws unexpectedly', async () => {
+      // Create a request where accessing .method throws after the null check passes.
+      const fakeRequest = Object.create(Request.prototype);
+      Object.defineProperty(fakeRequest, 'method', {
+        get() { throw new Error('simulated crash'); },
+      });
+      const res = await handler(fakeRequest);
+      expect(res.status).toBe(500);
+      const data = await res.json();
+      expect(data.error).toContain('Internal error:');
+      expect(data.error).toContain('simulated crash');
+    });
+  });
+
+  describe('HuggingFace fallback (when REPLICATE_API_TOKEN is absent)', () => {
+    let hfHandler: (req: Request) => Promise<Response>;
+
+    beforeEach(async () => {
+      vi.resetModules();
+      delete process.env.REPLICATE_API_TOKEN;
+      process.env.HUGGINGFACE_API_TOKEN = 'hf-test-token';
+      const mod = await import('./generate-audio');
+      hfHandler = mod.default;
+    });
+
+    afterEach(() => {
+      delete process.env.HUGGINGFACE_API_TOKEN;
+    });
+
+    async function hfPost(body: unknown): Promise<Response> {
+      return hfHandler(
+        new Request('https://example.com/api/generate-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+      );
+    }
+
+    it('returns 200 with data URL when HuggingFace returns audio', async () => {
+      const fakeAudio = new Uint8Array([0x52, 0x49, 0x46, 0x46]); // mock audio bytes
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+        new Response(fakeAudio.buffer, {
+          status: 200,
+          headers: { 'Content-Type': 'audio/flac' },
+        })
+      ));
+      const res = await hfPost({ prompt: 'chill beats' });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(typeof data.url).toBe('string');
+      expect(data.url).toMatch(/^data:audio\/flac;base64,/);
+    });
+
+    it('sends Authorization header and prompt to HuggingFace', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([1, 2, 3]).buffer, {
+          status: 200,
+          headers: { 'Content-Type': 'audio/wav' },
+        })
+      );
+      vi.stubGlobal('fetch', mockFetch);
+      await hfPost({ prompt: 'dark bass', duration: 10 });
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [url, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(url).toContain('api-inference.huggingface.co');
+      expect(url).toContain('musicgen-large');
+      expect((options.headers as Record<string, string>)['Authorization']).toBe('Bearer hf-test-token');
+      const body = JSON.parse(options.body as string) as Record<string, unknown>;
+      expect(body.inputs).toBe('dark bass');
+      expect((body.parameters as Record<string, unknown>).duration).toBe(10);
+    });
+
+    it('returns 200 with data URL when HuggingFace returns audio/wav', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+        new Response(new Uint8Array([0, 1, 2]).buffer, {
+          status: 200,
+          headers: { 'Content-Type': 'audio/wav' },
+        })
+      ));
+      const res = await hfPost({ prompt: 'test' });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.url).toMatch(/^data:audio\/wav;base64,/);
+    });
+
+    it('returns 502 when HuggingFace returns an error status', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+        new Response('Model is loading', { status: 503 })
+      ));
+      const res = await hfPost({ prompt: 'test' });
+      expect(res.status).toBe(502);
+      const data = await res.json();
+      expect(data.error).toContain('Generation failed');
+      expect(data.error).toContain('503');
+    });
+
+    it('returns 502 when fetch to HuggingFace throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network failure')));
+      const res = await hfPost({ prompt: 'test' });
+      expect(res.status).toBe(502);
+      const data = await res.json();
+      expect(data.error).toContain('Generation failed');
+    });
+
+    it('uses Replicate (not HuggingFace) when both tokens are present', async () => {
+      // Restore Replicate token so both are set
+      vi.resetModules();
+      process.env.REPLICATE_API_TOKEN = 'test-token';
+      process.env.HUGGINGFACE_API_TOKEN = 'hf-test-token';
+      const mod = await import('./generate-audio');
+      const bothHandler = mod.default;
+      mockRun.mockResolvedValue('https://replicate.delivery/out.mp3');
+      const fetchSpy = vi.fn();
+      vi.stubGlobal('fetch', fetchSpy);
+      const res = await bothHandler(
+        new Request('https://example.com/api/generate-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: 'test' }),
+        })
+      );
+      expect(res.status).toBe(200);
+      expect(mockRun).toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
+      delete process.env.REPLICATE_API_TOKEN;
     });
   });
 });
