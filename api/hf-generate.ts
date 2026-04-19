@@ -14,7 +14,7 @@
  * Image model: black-forest-labs/FLUX.1-schnell    (text-to-image)
  */
 
-import { parseHfGenerateRequest } from '../schemas/hfGenerateSchema';
+import { parseHfGenerateRequest } from '../schemas/hfGenerateSchema.js';
 
 // ---------------------------------------------------------------------------
 // Models

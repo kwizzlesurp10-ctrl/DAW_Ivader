@@ -5,7 +5,7 @@ import {
   GENERATE_AUDIO_DURATION_MAX,
   GENERATE_AUDIO_DURATION_DEFAULT,
   GENERATE_AUDIO_PROMPT_MAX_LENGTH,
-} from '../schemas/generateAudioSchema';
+} from '../schemas/generateAudioSchema.js';
 
 /** Stability AI Stable Audio 2.5 model on Replicate. */
 const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
@@ -171,11 +171,9 @@ async function handleRequest(request: Request): Promise<Response> {
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
   }
 
-  const url = extractUrl(output);
+  const url = extractUrl(audioDataUrl);
   if (!url) {
-    let outputStr: string;
-    try { outputStr = JSON.stringify(output); } catch { outputStr = String(output); }
-    console.error('[generate-audio] no audio URL in output:', outputStr);
+    console.error('[generate-audio] no audio URL in output:', audioDataUrl);
     return jsonResponse({ error: 'Model returned no audio URL' }, 502);
   }
 
