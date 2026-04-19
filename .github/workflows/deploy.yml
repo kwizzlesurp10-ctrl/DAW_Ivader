@@ -31,7 +31,7 @@ jobs:
         run: pnpm run test
 
       - name: Build
-        run: pnpm run build
+        run: pnpm run build:raw
 
       - name: Deploy to Vercel (production)
         run: npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
