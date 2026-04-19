@@ -247,10 +247,16 @@ export const AudioSampler: React.FC<AudioSamplerProps> = ({ onAudioLoaded, onSam
     setIsLooping(sample.loop ?? false);
     setLoopStart(sample.loopStart ?? 0);
     setLoopEnd(sample.loopEnd ?? 0);
-    
-    // Get duration for slider max
+
     const audio = new Audio(sample.url);
-    audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
+    audio.addEventListener('loadedmetadata', () => {
+      const d = audio.duration;
+      setDuration(d);
+      const end = sample.trimEnd != null ? Math.min(sample.trimEnd, d) : d;
+      setEndTime(end);
+      const start = sample.trimStart != null ? Math.min(sample.trimStart, end) : 0;
+      setStartTime(start);
+    });
   };
 
   const handleRemoveSample = (id: string) => {
