@@ -38,6 +38,7 @@ import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
 import { AudioSampler } from './components/AudioSampler';
 import { LoopLibrary, type MusicLoop } from './components/LoopLibrary';
+import { HFGenerator } from './components/HFGenerator';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -51,7 +52,7 @@ function nextLoopId(): string {
 const DEFAULT_STEPS_PER_PATTERN = 16 as const;
 const DEFAULT_SWING = 0;
 
-// Default initial state
+// Default initial state - tracks start with no notes so nothing plays automatically on startup
 const INITIAL_SONG: SongData = {
   title: "INIT_SEQUENCE_01",
   bpm: 128,
@@ -62,7 +63,7 @@ const INITIAL_SONG: SongData = {
       id: "t1",
       name: "LEAD",
       type: "synth",
-      notes: [{ note: "C4", startStep: 0, durationSteps: 2 }, { note: "E4", startStep: 4, durationSteps: 2 }, { note: "G4", startStep: 8, durationSteps: 2 }, { note: "B4", startStep: 12, durationSteps: 2 }],
+      notes: [],
       params: { waveform: "sawtooth", attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.2, filterCutoff: 2000, filterRes: 1, gain: 0.4 },
       muted: false,
       solo: false,
@@ -73,7 +74,7 @@ const INITIAL_SONG: SongData = {
       id: "t2",
       name: "BASS",
       type: "bass",
-      notes: [{ note: "C2", startStep: 0, durationSteps: 4 }, { note: "G2", startStep: 8, durationSteps: 4 }],
+      notes: [],
       params: { waveform: "square", attack: 0.01, decay: 0.2, sustain: 0.8, release: 0.1, filterCutoff: 400, filterRes: 5, gain: 0.6 },
       muted: false,
       solo: false,
@@ -84,7 +85,7 @@ const INITIAL_SONG: SongData = {
       id: "t3",
       name: "KICK",
       type: "drums",
-      notes: [{ note: "kick", startStep: 0, durationSteps: 1 }, { note: "kick", startStep: 4, durationSteps: 1 }, { note: "kick", startStep: 8, durationSteps: 1 }, { note: "kick", startStep: 12, durationSteps: 1 }],
+      notes: [],
       params: { waveform: "sine", attack: 0, decay: 0.1, sustain: 0, release: 0, filterCutoff: 1000, filterRes: 0, gain: 1 },
       muted: false,
       solo: false,
@@ -119,6 +120,7 @@ const App: React.FC = () => {
   const [draggedLoop, setDraggedLoop] = useState<MusicLoop | null>(null);
   const [modelVersion, setModelVersion] = useState<MusicGenModelVersion>(MUSICGEN_MODEL_VERSION_DEFAULT);
   const [generationDuration, setGenerationDuration] = useState<number>(GENERATE_AUDIO_DURATION_DEFAULT);
+  const [samplerPreload, setSamplerPreload] = useState<{ url: string; name: string } | null>(null);
 
   useEffect(() => {
     audioEngine.setSongData(song);
@@ -196,6 +198,7 @@ const App: React.FC = () => {
       createdAt: Date.now(),
     };
     setLoops(prev => [...prev, newLoop]);
+    setSamplerPreload({ url: result.value.url, name: newLoop.name });
     setPrompt('');
     setIsGenerating(false);
   };
@@ -752,7 +755,7 @@ const App: React.FC = () => {
         <div className="lg:col-span-4 h-full min-h-0 flex flex-col gap-6">
             {/* Audio Sampler Panel */}
             <div className="shrink-0">
-                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} />
+                <AudioSampler onAudioLoaded={handleAudioSamplerLoaded} preloadedAudio={samplerPreload} />
             </div>
             
             {/* Synth Controls Panel */}
@@ -869,6 +872,11 @@ const App: React.FC = () => {
           onDeleteLoop={handleDeleteLoop}
           onDragStart={handleLoopDragStart}
         />
+      </div>
+
+      {/* HuggingFace Creative Generator — text & image (separate from Replicate audio) */}
+      <div className="max-w-[1400px] w-full mx-auto mt-6">
+        <HFGenerator />
       </div>
       
       {/* Footer Decoration */}
