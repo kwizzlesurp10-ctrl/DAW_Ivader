@@ -1,11 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "pnpm build:raw",
+    "buildCommand": "npm run build",
   "devCommand": "vite --port $PORT",
   "outputDirectory": "dist",
   "framework": null,
-  "installCommand": "pnpm install",
+    "installCommand": "npm ci",
   "functions": {
     "api/generate-audio.ts": {
       "maxDuration": 300,
