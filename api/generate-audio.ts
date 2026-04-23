@@ -9,6 +9,8 @@ import {
 
 /** Stability AI Stable Audio 2.5 model on Replicate. */
 const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
+/** Backward-compatible alias for older references in this file. */
+const STABLE_AUDIO_REPLICATE_MODEL = STABLE_AUDIO_MODEL;
 
 /**
  * Extract a plain URL string from a Replicate output value.
