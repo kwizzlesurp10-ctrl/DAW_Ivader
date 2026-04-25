@@ -60,8 +60,8 @@ export const Sequencer: React.FC<SequencerProps> = ({
         <div className={`w-16 text-xs font-bold shrink-0 uppercase tracking-widest ${getTrackColor().split(' ')[0]} neon-text opacity-90`}>
           {track.name}
         </div>
-        <div className={`flex-1 h-12 rounded border border-gray-900 flex items-center justify-center ${getTrackBg()} bg-opacity-30 border-opacity-50`}>
-          <span className="text-[10px] font-bold text-white/90 uppercase tracking-wider">Generated clip — plays from start</span>
+        <div className={`flex-1 min-w-0 h-12 rounded border border-gray-900 flex items-center justify-center px-1 sm:px-2 ${getTrackBg()} bg-opacity-30 border-opacity-50`}>
+          <span className="text-[8px] sm:text-[10px] font-bold text-white/90 uppercase tracking-wider text-center leading-tight line-clamp-2">Clip · plays from start</span>
         </div>
       </div>
     );

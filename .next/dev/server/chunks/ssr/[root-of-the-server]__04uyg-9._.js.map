@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["file:///home/keef/Documents/DAW_Ivader/app/sign-in/%5B%5B...sign-in%5D%5D/page.tsx"],"sourcesContent":["import { SignIn } from '@clerk/nextjs';\n\nexport default function SignInPage() {\n  return (\n    <main className=\"flex min-h-[100dvh] min-h-screen box-border items-center justify-center p-4 sm:p-6 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))] pt-[max(1rem,env(safe-area-inset-top,0px))] pb-[max(1rem,env(safe-area-inset-bottom,0px))]\">\n      <SignIn />\n    </main>\n  );\n}\n"],"names":["SignInPage","className"],"mappings":";;;;;AAAA;;;AAEe,SAASA;IACtB,qBACE,yQAAC;QAAKC,WAAU;kBACd,cAAA,yQAAC,2NAAM;;;;;;;;;;AAGb"}}]
+}

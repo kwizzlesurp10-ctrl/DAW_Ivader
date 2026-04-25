@@ -1,0 +1,30 @@
+/* [next]/internal/font/google/share_tech_mono_29786a69.module.css [app-client] (css) */
+@font-face {
+  font-family: Share Tech Mono;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../media/c9bd7381a27f2960-s.p.0nt9ayxdmqydo.woff2") format("woff2");
+  unicode-range: U+??, U+131, U+152-153, U+2BB-2BC, U+2C6, U+2DA, U+2DC, U+304, U+308, U+329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: Share Tech Mono Fallback;
+  src: local(Arial);
+  ascent-override: 73.06%;
+  descent-override: 19.98%;
+  line-gap-override: 0.0%;
+  size-adjust: 121.13%;
+}
+
+.share_tech_mono_29786a69-module__F9D-bq__className {
+  font-family: Share Tech Mono, Share Tech Mono Fallback;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.share_tech_mono_29786a69-module__F9D-bq__variable {
+  --font-share-tech-mono: "Share Tech Mono", "Share Tech Mono Fallback";
+}
+
+/*# sourceMappingURL=%5Bnext%5D_internal_font_google_share_tech_mono_29786a69_module_css_0w3-wzy._.single.css.map*/

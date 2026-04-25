@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 82, "column": 0}, "map": {"version":3,"sources":["file:///home/keef/Documents/DAW_Ivader/proxy.ts"],"sourcesContent":["import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';\n\nconst isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/sign-up(.*)']);\n\nexport default clerkMiddleware(async (auth, request) => {\n  if (!isPublicRoute(request)) {\n    await auth.protect();\n  }\n});\n\nexport const config = {\n  matcher: [\n    '/((?!_next|[^?]*\\\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',\n    '/(api|trpc)(.*)',\n  ],\n};\n"],"names":["isPublicRoute","auth","request","protect","config","matcher"],"mappings":";;;;;;AAAA;AAAA;;AAEA,MAAMA,gBAAgB,IAAA,2NAAkB,EAAC;IAAC;IAAgB;CAAe;uCAE1D,IAAA,2NAAe,EAAC,OAAOC,MAAMC;IAC1C,IAAI,CAACF,cAAcE,UAAU;QAC3B,MAAMD,KAAKE,OAAO;IACpB;AACF;AAEO,MAAMC,SAAS;IACpBC,SAAS;QACP;QACA;KACD;AACH"}}]
+}

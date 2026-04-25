@@ -1,0 +1,3 @@
+{
+  "/api/generate-audio/route": "app/api/generate-audio/route.js"
+}

@@ -29,3 +29,6 @@ coverage
 test-results
 playwright-report
 .playwright
+
+# clerk configuration (can include secrets)
+/.clerk/

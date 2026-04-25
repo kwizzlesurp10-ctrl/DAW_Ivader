@@ -1,0 +1,3 @@
+module.exports=[6446,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(1874);a.n(d("[project]/Documents/DAW_Ivader/node_modules/next/dist/client/components/builtin/global-error.js <module evaluation>"))},55126,(a,b,c)=>{let{createClientModuleProxy:d}=a.r(1874);a.n(d("[project]/Documents/DAW_Ivader/node_modules/next/dist/client/components/builtin/global-error.js"))},90972,a=>{"use strict";a.i(6446);var b=a.i(55126);a.n(b)},43713,a=>{a.n(a.i(90972))}];
+
+//# sourceMappingURL=0o~-_next_dist_client_components_builtin_global-error_01jnxyn.js.map

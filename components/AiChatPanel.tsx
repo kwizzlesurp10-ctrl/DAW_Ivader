@@ -23,7 +23,7 @@ export function AiChatPanel() {
   const isBusy = status === 'submitted' || status === 'streaming';
 
   return (
-    <section className="cyber-panel shrink-0 p-3 bg-black/90 border-[#39ff14]/40">
+    <section className="cyber-panel w-full min-w-0 shrink-0 p-3 bg-black/90 border-[#39ff14]/40">
       <div className="mb-3 flex items-center justify-between border-b border-[#39ff14]/20 pb-2">
         <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#39ff14]">
           <Bot size={14} />

@@ -1,0 +1,71 @@
+[
+  {
+    "route": "/",
+    "firstLoadUncompressedJsBytes": 1237549,
+    "firstLoadChunkPaths": [
+      ".next/static/chunks/0n2yj96-rt39f.js",
+      ".next/static/chunks/0etq6kh3-rhez.js",
+      ".next/static/chunks/0ne1egx6pes~5.js",
+      ".next/static/chunks/02evlf4yf7ogs.js",
+      ".next/static/chunks/0hd9xx7gplmo4.js",
+      ".next/static/chunks/0dbn12.sob_hy.js",
+      ".next/static/chunks/0f7-_9yo89lb-.js",
+      ".next/static/chunks/0nditg46oddgm.js",
+      ".next/static/chunks/15_7ksan57.zl.js",
+      ".next/static/chunks/0gkmv.zzg9ik7.js",
+      ".next/static/chunks/07nxfmr..15xd.js",
+      ".next/static/chunks/turbopack-0lt2_y4ftjjwr.js"
+    ]
+  },
+  {
+    "route": "/_not-found",
+    "firstLoadUncompressedJsBytes": 678754,
+    "firstLoadChunkPaths": [
+      ".next/static/chunks/0n2yj96-rt39f.js",
+      ".next/static/chunks/0etq6kh3-rhez.js",
+      ".next/static/chunks/0ne1egx6pes~5.js",
+      ".next/static/chunks/02evlf4yf7ogs.js",
+      ".next/static/chunks/0dbn12.sob_hy.js",
+      ".next/static/chunks/0f7-_9yo89lb-.js",
+      ".next/static/chunks/0nditg46oddgm.js",
+      ".next/static/chunks/15_7ksan57.zl.js",
+      ".next/static/chunks/0gkmv.zzg9ik7.js",
+      ".next/static/chunks/07nxfmr..15xd.js",
+      ".next/static/chunks/turbopack-0lt2_y4ftjjwr.js"
+    ]
+  },
+  {
+    "route": "/sign-in/[[...sign-in]]",
+    "firstLoadUncompressedJsBytes": 678754,
+    "firstLoadChunkPaths": [
+      ".next/static/chunks/0n2yj96-rt39f.js",
+      ".next/static/chunks/0etq6kh3-rhez.js",
+      ".next/static/chunks/0ne1egx6pes~5.js",
+      ".next/static/chunks/02evlf4yf7ogs.js",
+      ".next/static/chunks/0dbn12.sob_hy.js",
+      ".next/static/chunks/0f7-_9yo89lb-.js",
+      ".next/static/chunks/0nditg46oddgm.js",
+      ".next/static/chunks/15_7ksan57.zl.js",
+      ".next/static/chunks/0gkmv.zzg9ik7.js",
+      ".next/static/chunks/07nxfmr..15xd.js",
+      ".next/static/chunks/turbopack-0lt2_y4ftjjwr.js"
+    ]
+  },
+  {
+    "route": "/sign-up/[[...sign-up]]",
+    "firstLoadUncompressedJsBytes": 678754,
+    "firstLoadChunkPaths": [
+      ".next/static/chunks/0n2yj96-rt39f.js",
+      ".next/static/chunks/0etq6kh3-rhez.js",
+      ".next/static/chunks/0ne1egx6pes~5.js",
+      ".next/static/chunks/02evlf4yf7ogs.js",
+      ".next/static/chunks/0dbn12.sob_hy.js",
+      ".next/static/chunks/0f7-_9yo89lb-.js",
+      ".next/static/chunks/0nditg46oddgm.js",
+      ".next/static/chunks/15_7ksan57.zl.js",
+      ".next/static/chunks/0gkmv.zzg9ik7.js",
+      ".next/static/chunks/07nxfmr..15xd.js",
+      ".next/static/chunks/turbopack-0lt2_y4ftjjwr.js"
+    ]
+  }
+]

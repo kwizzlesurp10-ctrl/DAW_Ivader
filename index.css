@@ -10,11 +10,18 @@
   --grid-color: rgba(57, 255, 20, 0.1);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background-color: var(--zim-dark);
   color: var(--zim-green);
   font-family: var(--font-share-tech-mono), monospace;
   overflow-x: hidden;
+  min-height: 100dvh;
+  min-height: 100vh;
 }
 
 /* --- SCROLLBAR --- */

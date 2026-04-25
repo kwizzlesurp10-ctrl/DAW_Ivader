@@ -517,22 +517,22 @@ const App: React.FC = () => {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden z-10 p-4">
-        <div className="cyber-panel p-8 md:p-12 text-center max-w-2xl w-full relative overflow-hidden group cursor-pointer" onClick={handleInit} data-testid="splash-panel">
+      <div className="min-h-[100dvh] box-border flex flex-col items-center justify-center relative overflow-hidden z-10 p-4 sm:p-6 pl-[max(1rem,env(safe-area-inset-left,0px))] pr-[max(1rem,env(safe-area-inset-right,0px))]">
+        <div className="cyber-panel p-6 sm:p-8 md:p-12 text-center max-w-2xl w-full min-w-0 relative overflow-hidden group cursor-pointer" onClick={handleInit} data-testid="splash-panel">
           <div className="absolute top-0 left-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           <div className="absolute bottom-0 right-0 w-full h-1 bg-[#39ff14] opacity-50"></div>
           
           <h1 
-            className="text-6xl md:text-8xl font-bold font-mono neon-text-green tracking-tighter mb-4 glitch" 
+            className="text-4xl sm:text-6xl md:text-8xl font-bold font-mono neon-text-green tracking-tighter mb-3 sm:mb-4 glitch break-words" 
             data-text="DOOM DAW"
           >
             DOOM DAW
           </h1>
-          <p className="text-xl md:text-2xl text-[#b026ff] neon-text-purple tracking-[0.5em] mb-12">IRKEN AUDIO LABS</p>
+          <p className="text-base sm:text-xl md:text-2xl text-[#b026ff] neon-text-purple tracking-[0.2em] sm:tracking-[0.5em] mb-8 sm:mb-12">IRKEN AUDIO LABS</p>
           
           <div className="relative inline-block">
              <div className="absolute inset-0 bg-[#39ff14] blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
-             <button type="button" className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] px-10 py-4 uppercase tracking-widest text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left" data-testid="init-button">
+             <button type="button" className="relative bg-black border-2 border-[#39ff14] text-[#39ff14] w-full max-w-sm px-6 sm:px-10 py-3 sm:py-4 uppercase tracking-widest text-base sm:text-lg hover:bg-[#39ff14] hover:text-black transition-all duration-200 font-bold clip-slant-left touch-manipulation" data-testid="init-button">
                 [ Initialize System ]
              </button>
           </div>
@@ -546,11 +546,11 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen p-2 md:p-4 lg:p-6 relative z-10 flex flex-col max-h-screen overflow-hidden">
+    <div className="min-h-[100dvh] max-h-[100dvh] box-border p-2 sm:p-4 lg:p-6 pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] relative z-10 flex flex-col overflow-hidden w-full min-w-0">
       
       {/* Header / Prompt Bar */}
-      <div className="max-w-[1400px] w-full mx-auto mb-4 lg:mb-6 flex flex-col xl:flex-row gap-4 lg:gap-6 items-stretch shrink-0">
-        <div className="cyber-panel flex-1 flex flex-col p-1">
+      <div className="max-w-[1400px] w-full min-w-0 mx-auto mb-3 sm:mb-4 lg:mb-6 flex flex-col xl:flex-row gap-3 sm:gap-4 lg:gap-6 items-stretch shrink-0">
+        <div className="cyber-panel flex-1 min-w-0 flex flex-col p-1">
             <div className="flex items-center justify-between px-2 py-1 bg-[#39ff14]/10 mb-1">
                 <label className="text-[10px] text-[#39ff14] font-bold tracking-widest flex items-center gap-2">
                     <Cpu size={12} /> /// COMMAND_INPUT
@@ -561,7 +561,7 @@ const App: React.FC = () => {
                 </div>
             </div>
             
-            <div className="flex flex-wrap lg:flex-nowrap gap-2 p-2 items-end">
+            <div className="flex flex-wrap lg:flex-nowrap gap-2 p-2 items-end w-full min-w-0">
                 <div className="flex flex-col gap-1 shrink-0">
                     <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">BACKEND</label>
                     <div className="flex gap-1">
@@ -660,7 +660,7 @@ const App: React.FC = () => {
                 
                 <div className="hidden lg:block w-px h-8 bg-gray-800 mx-1 mb-1"></div>
 
-                <div className="flex-1 flex flex-col gap-1 min-w-[200px]">
+                <div className="flex-1 min-w-0 w-full sm:min-w-[12rem] flex flex-col gap-1 basis-full sm:basis-auto">
                     <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">PROMPT_SEQUENCE</label>
                     <input 
                         type="text" 
@@ -668,7 +668,7 @@ const App: React.FC = () => {
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="Enter description (e.g. 'Epic cinematic orchestral...') ..."
                         data-testid="generate-prompt-input"
-                        className="bg-black/50 border border-gray-800 w-full text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
+                        className="bg-black/50 border border-gray-800 w-full min-w-0 text-base md:text-lg font-mono text-[#39ff14] placeholder-gray-700 px-3 sm:px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                         onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                     />
                 </div>
@@ -676,7 +676,7 @@ const App: React.FC = () => {
                 <button 
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="bg-[#39ff14] text-black font-bold px-6 py-2 h-[46px] hover:bg-[#b026ff] hover:text-white transition-all duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 clip-slant-right shadow-[0_0_15px_rgba(57,255,20,0.4)] hover:shadow-[0_0_20px_rgba(176,38,255,0.6)] shrink-0"
+                    className="bg-[#39ff14] text-black font-bold w-full sm:w-auto min-h-[44px] px-6 py-2 h-auto sm:h-[46px] justify-center hover:bg-[#b026ff] hover:text-white transition-all duration-200 uppercase disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 clip-slant-right shadow-[0_0_15px_rgba(57,255,20,0.4)] hover:shadow-[0_0_20px_rgba(176,38,255,0.6)] shrink-0 touch-manipulation basis-full sm:basis-auto"
                 >
                     {isGenerating ? <Activity className="animate-spin" /> : <Wand2 size={18} />}
                     {isGenerating ? "PROCESSING..." : "GENERATE"}
@@ -684,13 +684,13 @@ const App: React.FC = () => {
             </div>
         </div>
         
-        <div className="cyber-panel flex flex-wrap items-center gap-4 p-4 px-6 min-w-[320px] justify-between bg-black/80 lg:shrink-0">
-            <div className="flex items-center gap-2">
+        <div className="cyber-panel flex flex-col gap-3 p-3 sm:p-4 sm:px-6 w-full min-w-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center xl:justify-between bg-black/80 xl:shrink-0">
+            <div className="flex items-center justify-center sm:justify-start gap-2 w-full min-w-0 sm:w-auto">
                 <span className="text-[9px] text-gray-500 uppercase tracking-widest">PILOT</span>
                 <UserButton />
             </div>
-            <div className="h-10 w-[1px] bg-gray-700"></div>
-            <div className="flex items-center gap-3">
+            <div className="hidden h-10 w-px bg-gray-700 sm:block" aria-hidden />
+            <div className="flex flex-wrap items-center justify-center gap-3 w-full min-w-0 sm:w-auto">
                 <div className="text-center">
                     <div className="text-[10px] text-[#b026ff] tracking-widest mb-1">BPM</div>
                     <input
@@ -726,12 +726,12 @@ const App: React.FC = () => {
                     <span className="text-[9px] text-gray-500">CLICK</span>
                 </label>
             </div>
-            <div className="h-10 w-[1px] bg-gray-700"></div>
-            <div className="flex gap-2">
+            <div className="hidden h-10 w-px bg-gray-700 sm:block" aria-hidden />
+            <div className="flex gap-2 justify-center w-full min-w-0 sm:w-auto">
                  {/* Stop Button */}
                 <button 
                     onClick={handleStop}
-                    className="w-12 h-12 flex items-center justify-center border-2 border-[#ff0055] text-[#ff0055] bg-black hover:bg-[#ff0055] hover:text-black transition-all duration-150 group"
+                    className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center border-2 border-[#ff0055] text-[#ff0055] bg-black hover:bg-[#ff0055] hover:text-black transition-all duration-150 group touch-manipulation"
                     title="STOP"
                 >
                     <Square fill="currentColor" size={16} />
@@ -740,7 +740,7 @@ const App: React.FC = () => {
                  {/* Play Button */}
                 <button 
                     onClick={handlePlay}
-                    className={`w-12 h-12 flex items-center justify-center border-2 transition-all duration-150 ${playState === PlayState.PLAYING ? 'border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_15px_#39ff14]' : 'border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black'}`}
+                    className={`w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center border-2 transition-all duration-150 touch-manipulation ${playState === PlayState.PLAYING ? 'border-[#39ff14] bg-[#39ff14] text-black shadow-[0_0_15px_#39ff14]' : 'border-[#39ff14] text-[#39ff14] hover:bg-[#39ff14] hover:text-black'}`}
                     title="PLAY"
                 >
                     <Play fill="currentColor" size={16} className="ml-1" />
@@ -749,20 +749,20 @@ const App: React.FC = () => {
                  {/* Pause Button */}
                 <button 
                     onClick={handlePause}
-                    className={`w-12 h-12 flex items-center justify-center border-2 transition-all duration-150 ${playState === PlayState.PAUSED ? 'border-[#b026ff] bg-[#b026ff] text-black shadow-[0_0_15px_#b026ff]' : 'border-[#b026ff] text-[#b026ff] hover:bg-[#b026ff] hover:text-black'}`}
+                    className={`w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center border-2 transition-all duration-150 touch-manipulation ${playState === PlayState.PAUSED ? 'border-[#b026ff] bg-[#b026ff] text-black shadow-[0_0_15px_#b026ff]' : 'border-[#b026ff] text-[#b026ff] hover:bg-[#b026ff] hover:text-black'}`}
                     title="PAUSE"
                 >
                     <Pause fill="currentColor" size={16} />
                 </button>
             </div>
-            <div className="flex items-center gap-1 text-[10px]">
-                <button onClick={undo} disabled={!canUndo} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-40 disabled:cursor-not-allowed" title="Undo">UNDO</button>
-                <button onClick={redo} disabled={!canRedo} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-40 disabled:cursor-not-allowed" title="Redo">REDO</button>
-                <span className="w-px h-4 bg-gray-600 mx-1" />
-                <button onClick={handleSave} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Save to browser">SAVE</button>
-                <button onClick={handleLoad} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Load from browser">LOAD</button>
-                <button onClick={handleExport} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Export JSON">EXPORT</button>
-                <button onClick={handleImport} className="px-2 py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14]" title="Import JSON">IMPORT</button>
+            <div className="flex items-center justify-center gap-1 text-[9px] sm:text-[10px] flex-wrap w-full min-w-0 sm:w-auto py-1 border-t border-gray-800/60 sm:border-t-0 sm:py-0">
+                <button onClick={undo} disabled={!canUndo} className="px-2 py-1.5 sm:py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation min-h-[40px] sm:min-h-0" title="Undo">UNDO</button>
+                <button onClick={redo} disabled={!canRedo} className="px-2 py-1.5 sm:py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation min-h-[40px] sm:min-h-0" title="Redo">REDO</button>
+                <span className="w-px h-4 bg-gray-600 mx-1 self-center" aria-hidden />
+                <button onClick={handleSave} className="px-2 py-1.5 sm:py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] touch-manipulation min-h-[40px] sm:min-h-0" title="Save to browser">SAVE</button>
+                <button onClick={handleLoad} className="px-2 py-1.5 sm:py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] touch-manipulation min-h-[40px] sm:min-h-0" title="Load from browser">LOAD</button>
+                <button onClick={handleExport} className="px-2 py-1.5 sm:py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] touch-manipulation min-h-[40px] sm:min-h-0" title="Export JSON">EXPORT</button>
+                <button onClick={handleImport} className="px-2 py-1.5 sm:py-1 border border-gray-600 text-gray-400 hover:border-[#39ff14] hover:text-[#39ff14] touch-manipulation min-h-[40px] sm:min-h-0" title="Import JSON">IMPORT</button>
             </div>
         </div>
       </div>
@@ -776,7 +776,7 @@ const App: React.FC = () => {
                 <Visualizer />
             </div>
             
-            <div className="cyber-panel flex-1 p-3 lg:p-4 relative overflow-y-auto flex flex-col bg-black/80 min-h-[350px]">
+            <div className="cyber-panel flex-1 p-3 lg:p-4 relative overflow-y-auto flex flex-col bg-black/80 min-h-[240px] sm:min-h-[350px]">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 border-b border-gray-800 pb-2 shrink-0">
                     <div className="text-xs text-[#39ff14] font-bold tracking-widest flex items-center gap-2 neon-text-green">
                         <Zap size={14} /> SEQUENCE_MATRIX
@@ -864,7 +864,7 @@ const App: React.FC = () => {
             <AiChatPanel />
             
             {/* Synth Controls Panel */}
-            <div className="cyber-panel flex-1 p-3 lg:p-4 flex flex-col relative bg-black/90 overflow-hidden min-h-[400px]">
+            <div className="cyber-panel flex-1 p-3 lg:p-4 flex flex-col relative bg-black/90 overflow-hidden min-h-[min(50dvh,24rem)] sm:min-h-[400px]">
                  <div className="absolute top-0 right-0 p-2 opacity-30 pointer-events-none">
                     <Activity size={100} className="text-[#39ff14]/10" />
                  </div>
@@ -982,7 +982,7 @@ const App: React.FC = () => {
       </div>
       
       {/* Footer Decoration */}
-      <div className="fixed bottom-2 right-4 text-[9px] text-gray-600 font-mono hidden md:block z-50">
+      <div className="fixed right-4 text-[9px] text-gray-600 font-mono hidden md:block z-50 bottom-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
         SYSTEM_STATUS: OPERATIONAL :: MEMORY: 64TB :: IRKEN_EMPIRE_V2.0
       </div>
 

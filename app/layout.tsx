@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { ClerkProvider } from '@clerk/nextjs';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -16,6 +16,13 @@ const vt323 = VT323({
   weight: '400',
   variable: '--font-vt323',
 });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#050508',
+};
 
 export const metadata: Metadata = {
   title: 'DOOM-DAW // IRKEN LABS',

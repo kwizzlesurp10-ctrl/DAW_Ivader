@@ -1,0 +1,53 @@
+{
+  "node": {
+    "0037d8d3c10f9db2fbac748be567f6ba432d7b2655": {
+      "workers": {
+        "app/page": {
+          "moduleId": 20778,
+          "async": false,
+          "exportedName": "invalidateCacheAction",
+          "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"
+        }
+      },
+      "exportedName": "invalidateCacheAction",
+      "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/server-actions.js"
+    },
+    "006b043865a285eca3acd0adaafde7cd11d4a9f3ab": {
+      "workers": {
+        "app/page": {
+          "moduleId": 20778,
+          "async": false,
+          "exportedName": "createOrReadKeylessAction",
+          "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "exportedName": "createOrReadKeylessAction",
+      "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    },
+    "009b3372f53af6f2c784c27f4bdc4aec8acf733663": {
+      "workers": {
+        "app/page": {
+          "moduleId": 20778,
+          "async": false,
+          "exportedName": "deleteKeylessAction",
+          "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "exportedName": "deleteKeylessAction",
+      "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    },
+    "404e58e4ee4176d395fb6f9e75310205a5957b40cf": {
+      "workers": {
+        "app/page": {
+          "moduleId": 20778,
+          "async": false,
+          "exportedName": "syncKeylessConfigAction",
+          "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+        }
+      },
+      "exportedName": "syncKeylessConfigAction",
+      "filename": "Documents/DAW_Ivader/node_modules/@clerk/nextjs/dist/esm/app-router/keyless-actions.js"
+    }
+  },
+  "edge": {}
+}
