@@ -1,4 +1,7 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
+import { UserButton } from '@clerk/nextjs';
 import { Play, Square, Wand2, Activity, Zap, Cpu, Sliders, Pause, Plus, Trash2, Copy, Music } from 'lucide-react';
 import { audioEngine } from './services/audioEngine';
 import { generateAudioFromText } from './services/textToAudioService';
@@ -26,12 +29,20 @@ import {
   createEmptySamplerTrack,
 } from './lib/songMutations';
 import { SongData, Track, PlayState, AudioSample } from './types';
-import { StableAudioModelVersion, STABLE_AUDIO_MODEL_VERSION_DEFAULT, STABLE_AUDIO_MODEL_VERSIONS } from './schemas/generateAudioSchema';
+import {
+  AUDIO_GENERATION_BACKEND_DEFAULT,
+  AUDIO_GENERATION_BACKENDS,
+  type AudioGenerationBackend,
+  StableAudioModelVersion,
+  STABLE_AUDIO_MODEL_VERSION_DEFAULT,
+  STABLE_AUDIO_MODEL_VERSIONS,
+} from './schemas/generateAudioSchema';
 import { Visualizer } from './components/Visualizer';
 import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
 import { AudioSampler } from './components/AudioSampler';
 import { LoopLibrary, type MusicLoop } from './components/LoopLibrary';
+import { AiChatPanel } from './components/AiChatPanel';
 
 function nextTrackId(): string {
   return 't' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
@@ -95,6 +106,7 @@ const App: React.FC = () => {
   const [cancelStep, setCancelStep] = useState<number>(0);
   const [selectedStep, setSelectedStep] = useState<number>(0);
   const [prompt, setPrompt] = useState('');
+  const [generationBackend, setGenerationBackend] = useState<AudioGenerationBackend>(AUDIO_GENERATION_BACKEND_DEFAULT);
   const [modelVersion, setModelVersion] = useState<StableAudioModelVersion>(STABLE_AUDIO_MODEL_VERSION_DEFAULT);
   const [generationDuration, setGenerationDuration] = useState(15);
   const [generationSteps, setGenerationSteps] = useState(8);
@@ -179,6 +191,7 @@ const App: React.FC = () => {
 
     // Use the selected Stable Audio model and parameters for generation
     const result = await generateAudioFromText(prompt, generationDuration, modelVersion, {
+      backend: generationBackend,
       steps: generationSteps,
       cfg_scale: generationCfgScale
     });
@@ -550,17 +563,41 @@ const App: React.FC = () => {
             
             <div className="flex flex-wrap lg:flex-nowrap gap-2 p-2 items-end">
                 <div className="flex flex-col gap-1 shrink-0">
+                    <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">BACKEND</label>
+                    <div className="flex gap-1">
+                        {AUDIO_GENERATION_BACKENDS.map((backend) => (
+                            <button
+                                key={backend}
+                                onClick={() => setGenerationBackend(backend)}
+                                className={`px-2 py-1 text-[9px] font-bold border transition-all ${
+                                    generationBackend === backend
+                                    ? 'bg-[#39ff14] border-[#39ff14] text-black shadow-[0_0_10px_rgba(57,255,20,0.5)]'
+                                    : 'border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-400 bg-black/30'
+                                }`}
+                                type="button"
+                            >
+                                {backend.toUpperCase()}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="hidden lg:block w-px h-8 bg-gray-800 mx-1 mb-1"></div>
+
+                <div className="flex flex-col gap-1 shrink-0">
                     <label className="text-[9px] text-gray-500 uppercase tracking-widest ml-1">AI_MODE</label>
                     <div className="flex gap-1">
                         {STABLE_AUDIO_MODEL_VERSIONS.map((v) => (
                             <button
                                 key={v}
                                 onClick={() => setModelVersion(v)}
+                                disabled={generationBackend === 'comfyui'}
                                 className={`px-2 py-1 text-[9px] font-bold border transition-all ${
-                                    modelVersion === v 
+                                    modelVersion === v && generationBackend === 'replicate'
                                     ? 'bg-[#b026ff] border-[#b026ff] text-white shadow-[0_0_10px_rgba(176,38,255,0.5)]' 
-                                    : 'border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-400 bg-black/30'
+                                    : 'border-gray-800 text-gray-500 hover:border-gray-600 hover:text-gray-400 bg-black/30 disabled:cursor-not-allowed disabled:opacity-40'
                                 }`}
+                                type="button"
                             >
                                 {v.replace('stable-audio-', '').toUpperCase()}
                             </button>
@@ -581,6 +618,7 @@ const App: React.FC = () => {
                                 value={generationDuration} 
                                 onChange={(e) => setGenerationDuration(Number(e.target.value))}
                                 className="w-16 h-1 accent-[#39ff14]"
+                                aria-label="Generation length in seconds"
                             />
                             <span className="text-[10px] font-mono text-[#39ff14] w-6">{generationDuration}s</span>
                         </div>
@@ -596,6 +634,7 @@ const App: React.FC = () => {
                                 value={generationSteps} 
                                 onChange={(e) => setGenerationSteps(Number(e.target.value))}
                                 className="w-16 h-1 accent-[#b026ff]"
+                                aria-label="Generation steps"
                             />
                             <span className="text-[10px] font-mono text-[#b026ff] w-4">{generationSteps}</span>
                         </div>
@@ -612,6 +651,7 @@ const App: React.FC = () => {
                                 value={generationCfgScale} 
                                 onChange={(e) => setGenerationCfgScale(Number(e.target.value))}
                                 className="w-16 h-1 accent-[#ff0055]"
+                                aria-label="Generation creativity"
                             />
                             <span className="text-[10px] font-mono text-[#ff0055] w-4">{generationCfgScale}</span>
                         </div>
@@ -627,6 +667,7 @@ const App: React.FC = () => {
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder="Enter description (e.g. 'Epic cinematic orchestral...') ..."
+                        data-testid="generate-prompt-input"
                         className="bg-black/50 border border-gray-800 w-full text-lg font-mono text-[#39ff14] placeholder-gray-700 px-4 py-2 focus:border-[#39ff14] focus:outline-none transition-colors"
                         onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
                     />
@@ -644,6 +685,11 @@ const App: React.FC = () => {
         </div>
         
         <div className="cyber-panel flex flex-wrap items-center gap-4 p-4 px-6 min-w-[320px] justify-between bg-black/80 lg:shrink-0">
+            <div className="flex items-center gap-2">
+                <span className="text-[9px] text-gray-500 uppercase tracking-widest">PILOT</span>
+                <UserButton />
+            </div>
+            <div className="h-10 w-[1px] bg-gray-700"></div>
             <div className="flex items-center gap-3">
                 <div className="text-center">
                     <div className="text-[10px] text-[#b026ff] tracking-widest mb-1">BPM</div>
@@ -815,6 +861,7 @@ const App: React.FC = () => {
                   onLoopDropped={() => setDraggedLoop(null)} 
                 />
             </div>
+            <AiChatPanel />
             
             {/* Synth Controls Panel */}
             <div className="cyber-panel flex-1 p-3 lg:p-4 flex flex-col relative bg-black/90 overflow-hidden min-h-[400px]">

@@ -13,7 +13,7 @@
 body {
   background-color: var(--zim-dark);
   color: var(--zim-green);
-  font-family: 'Share Tech Mono', monospace;
+  font-family: var(--font-share-tech-mono), monospace;
   overflow-x: hidden;
 }
 

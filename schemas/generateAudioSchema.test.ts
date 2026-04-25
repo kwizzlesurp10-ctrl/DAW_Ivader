@@ -97,6 +97,21 @@ describe('generateAudioSchema', () => {
       if (result.success) expect(result.data.model_version).toBe('stable-audio-2.5');
     });
 
+    it('defaults to replicate backend when backend omitted', () => {
+      const result = generateAudioRequestSchema.safeParse({ prompt: 'test' });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.backend).toBe('replicate');
+    });
+
+    it('accepts comfyui backend', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        backend: 'comfyui',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.backend).toBe('comfyui');
+    });
+
     it('clamps steps to model limit of 8', () => {
       const result = generateAudioRequestSchema.safeParse({
         prompt: 'x',
@@ -110,6 +125,14 @@ describe('generateAudioSchema', () => {
       const result = generateAudioRequestSchema.safeParse({
         prompt: 'test',
         model_version: 'invalid-model',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects invalid backend', () => {
+      const result = generateAudioRequestSchema.safeParse({
+        prompt: 'test',
+        backend: 'invalid-backend',
       });
       expect(result.success).toBe(false);
     });

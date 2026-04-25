@@ -1,0 +1,3 @@
+{
+  "_comment": "Export your ComfyUI audio workflow in API format and replace this file. The integration injects the user prompt into COMFYUI_PROMPT_NODE_ID/COMFYUI_PROMPT_INPUT_KEY when configured, or the first text/prompt/positive/description input it can find."
+}

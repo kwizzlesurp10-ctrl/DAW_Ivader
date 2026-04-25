@@ -4,7 +4,9 @@ import {
   generateAudioResponseSchema,
   type GenerateAudioRequest,
   type GenerateAudioSuccess,
+  type AudioGenerationBackend,
   type StableAudioModelVersion,
+  AUDIO_GENERATION_BACKEND_DEFAULT,
   GENERATE_AUDIO_DURATION_DEFAULT,
   STABLE_AUDIO_MODEL_VERSION_DEFAULT,
 } from '../schemas/generateAudioSchema';
@@ -17,12 +19,12 @@ const FETCH_TIMEOUT_MS = 90_000;
 
 /**
  * Call the app's serverless API to generate audio from text (Stable Audio).
- * In production the API runs on the same origin; in dev use Vercel dev or full URL.
+ * The Next.js app serves the UI and API routes from the same origin.
  *
  * @param prompt - Text description of the desired music.
  * @param durationSeconds - Clip length in seconds. Default 15.
  * @param modelVersion - Stable Audio model to use: 'stable-audio-2.5' (default).
- * @param options - Optional parameters: negative_prompt, steps, cfg_scale.
+ * @param options - Optional parameters: backend, negative_prompt, steps, cfg_scale.
  * @returns Result with { url } on success, or Error on failure.
  */
 export async function generateAudioFromText(
@@ -30,6 +32,7 @@ export async function generateAudioFromText(
   durationSeconds: number = GENERATE_AUDIO_DURATION_DEFAULT,
   modelVersion: StableAudioModelVersion = STABLE_AUDIO_MODEL_VERSION_DEFAULT,
   options: {
+    backend?: AudioGenerationBackend;
     negative_prompt?: string;
     steps?: number;
     cfg_scale?: number;
@@ -39,6 +42,7 @@ export async function generateAudioFromText(
     prompt: prompt.trim(),
     duration: durationSeconds,
     model_version: modelVersion,
+    backend: options.backend ?? AUDIO_GENERATION_BACKEND_DEFAULT,
     ...options,
   });
   if (!parseResult.success) {
@@ -49,12 +53,8 @@ export async function generateAudioFromText(
       'Invalid prompt';
     return err(new Error(msg));
   }
-  const { prompt: trimmed, duration, model_version, negative_prompt, steps, cfg_scale } = parseResult.data;
-
-  const apiBase =
-    typeof window !== 'undefined'
-      ? window.location.origin
-      : (process.env.VITE_APP_URL as string | undefined) ?? '';
+  const { prompt: trimmed, duration, model_version, backend, negative_prompt, steps, cfg_scale } =
+    parseResult.data;
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -64,11 +64,12 @@ export async function generateAudioFromText(
       prompt: trimmed, 
       duration, 
       model_version,
+      backend,
       negative_prompt,
       steps,
       cfg_scale
     };
-    const res = await fetch(`${apiBase}/api/generate-audio`, {
+    const res = await fetch('/api/generate-audio', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -94,7 +95,7 @@ export async function generateAudioFromText(
       if (res.status === 404) {
         return err(
           new Error(
-            'Generate API not found. Run the app with "vercel dev" (not npm run dev) so /api/generate-audio is available.'
+            'Generate API not found. Run the app with "pnpm dev" so /api/generate-audio is available.'
           )
         );
       }

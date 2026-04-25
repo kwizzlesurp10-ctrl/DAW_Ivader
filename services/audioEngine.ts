@@ -2,15 +2,15 @@ import { SongData, Track, NoteEvent, SynthParams } from '../types';
 
 /**
  * Audio engine: real Web Audio API only. No mock or simulation mode in runtime.
- * Production (including Vercel): VITE_AUDIO_MOCK and VITE_SIMULATE_AUDIO must not be set.
+ * Production (including Vercel): NEXT_PUBLIC_AUDIO_MOCK and NEXT_PUBLIC_SIMULATE_AUDIO must not be set.
  */
-const isProd = typeof import.meta !== 'undefined' && import.meta.env?.PROD === true;
+const isProd = process.env.NODE_ENV === 'production';
 const mockEnvSet =
-  typeof import.meta !== 'undefined' &&
-  (import.meta.env?.VITE_AUDIO_MOCK === 'true' || import.meta.env?.VITE_SIMULATE_AUDIO === 'true');
+  process.env.NEXT_PUBLIC_AUDIO_MOCK === 'true' ||
+  process.env.NEXT_PUBLIC_SIMULATE_AUDIO === 'true';
 if (isProd && mockEnvSet) {
   throw new Error(
-    'Mock/simulation audio is disabled in production. Do not set VITE_AUDIO_MOCK or VITE_SIMULATE_AUDIO in Vercel or any production environment. See DEPLOY.md.'
+    'Mock/simulation audio is disabled in production. Do not set NEXT_PUBLIC_AUDIO_MOCK or NEXT_PUBLIC_SIMULATE_AUDIO in Vercel or any production environment. See DEPLOY.md.'
   );
 }
 

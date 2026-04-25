@@ -62,7 +62,9 @@ Nodes are **intents** (what the system must do). Edges are **depends-on** or **e
 | Song mutations (pure) | `lib/songMutations.ts` | addTrack, removeTrack, duplicateTrack, moveTrack, setTrack*, toggleStep, setBpm, setSwing, setStepsPerPattern, etc. |
 | `AudioEngine`        | `services/audioEngine.ts` | setSongData, start/pause/stop, scheduleNote, preload audio |
 | `useUndoRedo`        | `hooks/useUndoRedo.ts` | history + setState + undo/redo |
-| `handler`            | `api/generate-audio.ts` | Validate → Replicate → { url } \| { error } |
+| `generateAudioWithComfyUi` | `lib/comfyAudioProvider.ts` | Workflow JSON → ComfyUI prompt/history/view URL |
+| `POST`               | `app/api/generate-audio/route.ts` | Auth → validate → backend selector → { url } \| { error } |
+| `POST`               | `app/api/chat/route.ts` | Auth → validate UI messages → AI SDK stream |
 
 **No duplication rule:** Validation lives in schemas; I/O outcomes in Result; song shape in types + songSchema; generate-audio contract in generateAudioSchema.
 
@@ -71,8 +73,9 @@ Nodes are **intents** (what the system must do). Edges are **depends-on** or **e
 ## 3. Predictive causality (data flow)
 
 1. **User edits step** → `handleStepToggle` → `setSong(prev => …)` → `useUndoRedo` pushes history → `useEffect` → `audioEngine.setSongData(song)`.
-2. **User clicks Generate** → `generateAudioFromText(prompt, 8)` → Zod request → POST → API Zod parse → Replicate → response Zod → `createGeneratedAudioTrack(url, {id, name})` → `setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }))`.
-3. **Load/Import** → `parseSongResponse(raw)` → Result → on ok, `setSong(result.value)` (and optionally stop playback).
+2. **User clicks Generate** → choose Replicate or ComfyUI → `generateAudioFromText(prompt, 8)` → Zod request → POST → Clerk auth → API Zod parse → backend provider → response Zod → `createGeneratedAudioTrack(url, {id, name})` → `setSong(prev => ({ ...prev, tracks: [...prev.tracks, newTrack] }))`.
+3. **User chats** → `AiChatPanel` → POST `/api/chat` → Clerk auth → UI message validation → AI SDK stream → rendered message parts.
+4. **Load/Import** → `parseSongResponse(raw)` → Result → on ok, `setSong(result.value)` (and optionally stop playback).
 
 Every external input (API, file, localStorage) goes through Zod then Result; every song mutation goes through `setSong` so undo/redo and audio engine stay in sync.
 
@@ -83,7 +86,8 @@ Every external input (API, file, localStorage) goes through Zod then Result; eve
 | Extension point        | Current behavior              | How to extend without breaking |
 |------------------------|-------------------------------|---------------------------------|
 | New track type         | `Track.type`: synth \| bass \| drums \| audio | Add type in `types.ts`, `trackSchema`, and engine `scheduleNote` / UI. |
-| New API (e.g. another model) | New schema + serverless handler; client service calls new route. | Keep Result + Zod; no shared mutable state. |
+| New generation backend | `AudioGenerationBackend` schema + provider helper + route branch. | Keep provider I/O isolated and covered by tests. |
+| New API (e.g. another model) | New schema + App Router handler; client service calls new route. | Keep Result + Zod; no shared mutable state. |
 | New persistence       | localStorage + JSON file      | New functions in `storageService` using same `parseSongResponse` / export. |
 | New UI control         | New component; read from song, call `setSong` or dedicated handler. | Only mutate via `setSong` or engine API. |
 
@@ -112,7 +116,7 @@ To approximate “10^4 probabilistic branches” with minimal tests:
 - **Schemas:** Empty string, null, undefined, wrong types, out-of-range numbers, huge arrays.
 - **Result:** `unwrapOr`, `unwrapOrElse`, `mapResult`, `mapError` on ok/err.
 - **Storage:** Missing key, invalid JSON, valid JSON but invalid shape (parseSongResponse).
-- **Generate-audio:** Missing token (503), invalid body (400), non-JSON body, timeout, non-200 response.
+- **Generate-audio:** Missing token (503), invalid body (400), non-JSON body, timeout, non-200 response, ComfyUI offline, missing prompt_id, missing audio output.
 - **createGeneratedAudioTrack:** Empty id, empty name, very long URL (if any limit exists).
 
 These are implemented in existing and new tests; no direct replication of logic—only inputs and expected outputs.
@@ -133,7 +137,9 @@ These are implemented in existing and new tests; no direct replication of logic�
 | `services/geminiService.ts` | Generate SongData via OpenRouter (optional) |
 | `lib/createGeneratedAudioTrack.ts` | Build audio track from URL |
 | `lib/songMutations.ts`     | Pure song mutation functions (add/remove/duplicate/move track, toggle step, set bpm/swing, etc.) |
-| `api/generate-audio.ts`    | Serverless generate-audio (Replicate) |
+| `lib/comfyAudioProvider.ts` | Local ComfyUI workflow submission and output URL extraction |
+| `app/api/generate-audio/route.ts` | Protected generate-audio route (Replicate or ComfyUI) |
+| `app/api/chat/route.ts`    | Protected streaming chat route (AI SDK) |
 | `hooks/useUndoRedo.ts`     | Undo/redo state |
 | `App.tsx`                  | Orchestration only (no business logic) |
 | `components/*`             | UI only; callbacks to App |

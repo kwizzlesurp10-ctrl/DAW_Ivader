@@ -5,56 +5,70 @@
  * Uses minimal generation params (1 s) to keep costs near-zero.
  *
  * Run:
- *   REPLICATE_API_TOKEN=<token> npx vitest run e2e/generate-audio.replicate.e2e.test.ts
+ *   REPLICATE_API_TOKEN=<token> pnpm vitest run e2e/generate-audio.replicate.e2e.test.ts
  *
  * @vitest-environment node
  */
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { describe, it, expect, vi } from 'vitest';
 
-const HAS_TOKEN = !!process.env.REPLICATE_API_TOKEN?.trim();
+const { mockAuth } = vi.hoisted(() => ({
+  mockAuth: vi.fn(),
+}));
+
+vi.mock('@clerk/nextjs/server', () => ({
+  auth: mockAuth,
+}));
+
+function loadDotEnvValue(name: string): string | undefined {
+  if (process.env[name]?.trim()) {
+    return process.env[name];
+  }
+
+  const envPath = resolve(process.cwd(), '.env');
+  if (!existsSync(envPath)) {
+    return undefined;
+  }
+
+  const line = readFileSync(envPath, 'utf8')
+    .split(/\r?\n/)
+    .find((entry) => entry.trim().startsWith(`${name}=`));
+  const rawValue = line?.slice(name.length + 1).trim();
+  if (!rawValue) {
+    return undefined;
+  }
+
+  const value = rawValue.replace(/^['"]|['"]$/g, '');
+  process.env[name] = value;
+  return value;
+}
+
+const HAS_TOKEN = !!loadDotEnvValue('REPLICATE_API_TOKEN')?.trim();
 
 describe.skipIf(!HAS_TOKEN)('E2E: Music generation with real Replicate API', () => {
-  let handler: any;
-
-  beforeAll(async () => {
-    // Dynamic import — no Replicate mock in this file, so the real SDK is used.
-    const mod = await import('../api/generate-audio');
-    handler = mod.default;
-  });
-
   it(
     'creates a prediction and returns url directly (polling)',
     async () => {
-      const req = {
-        method: 'POST',
-        body: {
+      mockAuth.mockResolvedValue({ userId: 'replicate_e2e_user' });
+      const { POST } = await import('../app/api/generate-audio/route');
+
+      const response = await POST(
+        new Request('http://localhost/api/generate-audio', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
           prompt: 'short drum hit',
           duration: 1, // Use minimum for test
-        }
-      };
-      
-      let responseStatus = 0;
-      let responseBody: any = null;
-
-      const res = {
-        setHeader: vi.fn(),
-        status: (s: number) => {
-          responseStatus = s;
-          return res;
-        },
-        json: (b: any) => {
-          responseBody = b;
-          return res;
-        },
-        end: () => res
-      };
-
-      await handler(req, res);
+          }),
+        })
+      );
+      const responseBody = (await response.json()) as { url?: unknown; error?: unknown };
 
       // Expect 200 with { url } or 502/500 on failure
-      expect([200, 502, 500]).toContain(responseStatus);
+      expect([200, 502, 500]).toContain(response.status);
 
-      if (responseStatus === 200) {
+      if (response.status === 200) {
         expect(responseBody).toHaveProperty('url');
         expect(responseBody.url).toMatch(/^https?:\/\//);
       } else {

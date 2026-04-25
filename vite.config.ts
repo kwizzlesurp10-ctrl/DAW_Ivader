@@ -6,9 +6,12 @@ import react from '@vitejs/plugin-react';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   // Fail production build if mock/simulate audio env is set (e.g. on Vercel)
-  if (mode === 'production' && (env.VITE_AUDIO_MOCK === 'true' || env.VITE_SIMULATE_AUDIO === 'true')) {
+  if (
+    mode === 'production' &&
+    (env.NEXT_PUBLIC_AUDIO_MOCK === 'true' || env.NEXT_PUBLIC_SIMULATE_AUDIO === 'true')
+  ) {
     throw new Error(
-      'Do not set VITE_AUDIO_MOCK or VITE_SIMULATE_AUDIO in production (e.g. Vercel). Remove them from Environment Variables and redeploy.'
+      'Do not set NEXT_PUBLIC_AUDIO_MOCK or NEXT_PUBLIC_SIMULATE_AUDIO in production (e.g. Vercel). Remove them from Environment Variables and redeploy.'
     );
   }
   return {

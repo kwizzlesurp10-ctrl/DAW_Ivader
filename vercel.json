@@ -1,15 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": null,
-  "installCommand": "npm ci",
-  "functions": {
-    "api/generate-audio.ts": {
-      "maxDuration": 300
-    }
-  },
+  "buildCommand": "pnpm run build",
+  "framework": "nextjs",
+  "installCommand": "pnpm install --frozen-lockfile",
   "headers": [
     {
       "source": "/index.html",
@@ -24,16 +18,6 @@
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
       ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
     }
   ]
 }

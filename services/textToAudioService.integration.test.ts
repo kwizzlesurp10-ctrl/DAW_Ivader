@@ -57,6 +57,27 @@ describe('textToAudioService (communication layer)', () => {
         })
       );
     });
+
+    it('sends selected ComfyUI backend in request body', async () => {
+      const url = 'http://127.0.0.1:8188/view?filename=loop.wav&type=output&subfolder=';
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        text: () => Promise.resolve(JSON.stringify({ url })),
+      });
+
+      const result = await generateAudioFromText('dark bass', 8, 'stable-audio-2.5', {
+        backend: 'comfyui',
+      });
+
+      expect(isOk(result)).toBe(true);
+      const [, options] = mockFetch.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(String(options.body))).toMatchObject({
+        prompt: 'dark bass',
+        backend: 'comfyui',
+      });
+    });
   });
 
   describe('error handling', () => {
@@ -71,7 +92,7 @@ describe('textToAudioService (communication layer)', () => {
       const result = await generateAudioFromText('test');
 
       expect(isErr(result)).toBe(true);
-      if (isErr(result)) expect(result.error.message).toContain('vercel dev');
+      if (isErr(result)) expect(result.error.message).toContain('pnpm dev');
     });
 
     it('returns err when API returns 500 with error message', async () => {

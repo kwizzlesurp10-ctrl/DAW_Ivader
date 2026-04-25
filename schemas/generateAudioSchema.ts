@@ -20,6 +20,12 @@ export type StableAudioModelVersion = (typeof STABLE_AUDIO_MODEL_VERSIONS)[numbe
 
 export const STABLE_AUDIO_MODEL_VERSION_DEFAULT: StableAudioModelVersion = 'stable-audio-2.5';
 
+export const AUDIO_GENERATION_BACKENDS = ['replicate', 'comfyui'] as const;
+
+export type AudioGenerationBackend = (typeof AUDIO_GENERATION_BACKENDS)[number];
+
+export const AUDIO_GENERATION_BACKEND_DEFAULT: AudioGenerationBackend = 'replicate';
+
 /**
  * Zod schema for the generate-audio API request body.
  * Shared between client and server for type safety.
@@ -62,6 +68,10 @@ export const generateAudioRequestSchema = z.object({
     .enum(STABLE_AUDIO_MODEL_VERSIONS)
     .optional()
     .default(STABLE_AUDIO_MODEL_VERSION_DEFAULT),
+  backend: z
+    .enum(AUDIO_GENERATION_BACKENDS)
+    .optional()
+    .default(AUDIO_GENERATION_BACKEND_DEFAULT),
 });
 
 export type GenerateAudioRequest = z.infer<typeof generateAudioRequestSchema>;
@@ -93,3 +103,6 @@ export const generateAudioResponseSchema = z.union([
   z.object({ url: z.string().url() }),
   z.object({ error: z.string() }),
 ]);
+
+export type GenerateAudioResponse = z.infer<typeof generateAudioResponseSchema>;
+export type GenerateAudioSuccess = Extract<GenerateAudioResponse, { url: string }>;

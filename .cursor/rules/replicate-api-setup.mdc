@@ -19,11 +19,11 @@ When helping with the Generate (text-to-audio) feature or API, follow these step
   ```bash
   REPLICATE_API_TOKEN=your_token
   ```
-- **Running the app:** Generate only works when the API is reachable:
-  - **Option A:** Run with **`vercel dev`** (Vercel CLI) so both the Vite app and `/api` serverless routes run; use the URL it prints.
+- **Running the app:** Generate only works for authenticated users when the Next.js API route is reachable:
+  - **Option A:** Run with **`pnpm dev`** so both the App Router UI and `/api` route handlers run.
   - **Option B:** Use the deployed app on Vercel (Generate works there if env is set).
 
-Do **not** tell users that `npm run dev` alone is enough for Generate; the `/api/generate-audio` route is only served by Vercel (or `vercel dev`).
+Do **not** tell users to run the old Vite-only dev server for Generate; `/api/generate-audio` is served by Next.js App Router.
 
 ## 3. Vercel (production)
 
@@ -32,7 +32,9 @@ Do **not** tell users that `npm run dev` alone is enough for Generate; the `/api
 
 ## Implementation reference
 
-- **Serverless:** `api/generate-audio.ts` — POST, reads `REPLICATE_API_TOKEN`, calls Replicate MusicGen, returns `{ url }`.
+- **Route handler:** `app/api/generate-audio/route.ts` — POST, requires Clerk auth, routes to Replicate Stable Audio or local ComfyUI, returns `{ url }`.
+- **Replicate provider:** Reads `REPLICATE_API_TOKEN`; required only when `backend: "replicate"`.
+- **ComfyUI provider:** `lib/comfyAudioProvider.ts` reads `COMFYUI_BASE_URL` and `COMFYUI_AUDIO_WORKFLOW_PATH`; requires an exported API workflow JSON.
 - **Client:** `services/textToAudioService.ts` — `generateAudioFromText(prompt, duration)` calls `POST /api/generate-audio` and returns `Result<{ url }, Error>`.
 - **App:** Generate button calls `generateAudioFromText(prompt)` then adds a track with `type: 'audio'` and `audioUrl`.
 - **Docs:** Keep `.env.example` and README "Generate audio setup (Replicate)" section in sync with these steps.
