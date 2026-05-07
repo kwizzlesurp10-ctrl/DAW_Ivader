@@ -37,7 +37,7 @@ function extractUrl(value: unknown): string | null {
       }
     }
     // FileOutput with toString()
-    const s = String(value);
+export const config = { maxDuration: 30 };
     if (s.startsWith('http') || s.startsWith('data:')) return s;
   }
   return null;
