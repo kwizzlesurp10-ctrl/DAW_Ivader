@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { SongData, Track, SynthParams } from '../types';
+import { createEmptyDrumPads } from '../types';
 
 const defaultParams: SynthParams = {
   waveform: 'sine',
@@ -38,6 +39,7 @@ function makeSongData(overrides: Partial<SongData> = {}): SongData {
     stepsPerPattern: 16,
     swing: 0,
     tracks: [makeTrack()],
+    drumPads: createEmptyDrumPads(),
     ...overrides,
   };
 }

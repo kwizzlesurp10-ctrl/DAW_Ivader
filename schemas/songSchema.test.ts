@@ -4,8 +4,10 @@ import {
   synthParamsSchema,
   trackSchema,
   songDataSchema,
+  drumPadSlotSchema,
   parseSongResponse,
 } from './songSchema';
+import { DRUM_PAD_COUNT } from '../types';
 import { isOk, isErr } from '../lib/result';
 
 describe('songSchema', () => {
@@ -98,6 +100,30 @@ describe('songSchema', () => {
       expect(() => songDataSchema.parse({})).toThrow();
       expect(() => songDataSchema.parse({ title: 123, bpm: 120, tracks: [] })).toThrow();
     });
+    it('accepts song with optional drumPads array', () => {
+      const raw = {
+        ...validSong,
+        drumPads: [{ name: 'A', audioUrl: 'https://example.com/x.wav' }],
+      };
+      expect(songDataSchema.parse(raw)).toMatchObject({ drumPads: [{ name: 'A' }] });
+    });
+  });
+
+  describe('drumPadSlotSchema', () => {
+    it('accepts minimal pad', () => {
+      expect(drumPadSlotSchema.parse({ name: 'Pad 1' })).toEqual({ name: 'Pad 1' });
+    });
+    it('accepts trim fields', () => {
+      expect(
+        drumPadSlotSchema.parse({
+          name: 'X',
+          audioUrl: 'https://example.com/a.wav',
+          audioTrimStart: 0.5,
+          audioTrimEnd: 4,
+          muted: true,
+        })
+      ).toMatchObject({ muted: true });
+    });
   });
 
   describe('parseSongResponse', () => {
@@ -114,6 +140,7 @@ describe('songSchema', () => {
         expect(result.value.tracks[0].solo).toBe(false);
         expect(result.value.tracks[0].volume).toBe(1);
         expect(result.value.tracks[0].pan).toBe(0);
+        expect(result.value.drumPads).toHaveLength(DRUM_PAD_COUNT);
       }
     });
     it('defaults muted to false when omitted', () => {

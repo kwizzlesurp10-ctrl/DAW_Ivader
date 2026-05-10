@@ -3,7 +3,15 @@
  * No side effects; intended for use with useUndoRedo setState so undo/redo stays consistent.
  */
 
-import type { SongData, Track, NoteEvent, SynthParams, StepsPerPattern } from '../types';
+import {
+  type SongData,
+  type Track,
+  type NoteEvent,
+  type SynthParams,
+  type StepsPerPattern,
+  type DrumPadSlot,
+  DRUM_PAD_COUNT,
+} from '../types';
 
 const DEFAULT_SYNTH_PARAMS: SynthParams = {
   waveform: 'sine',
@@ -229,6 +237,46 @@ export function replaceSong(_song: SongData, next: SongData): SongData {
  */
 export function appendTrack(song: SongData, newTrack: Track): SongData {
   return addTrack(song, newTrack);
+}
+
+export interface DrumPadClipInput {
+  name: string;
+  url: string;
+  trimStart?: number;
+  trimEnd?: number;
+}
+
+/**
+ * Assign a generated/imported clip URL to a drum pad (by index 0..DRUM_PAD_COUNT-1).
+ */
+export function assignDrumPadClip(song: SongData, index: number, clip: DrumPadClipInput): SongData | null {
+  if (index < 0 || index >= DRUM_PAD_COUNT || index >= song.drumPads.length) return null;
+  const drumPads: DrumPadSlot[] = [...song.drumPads];
+  drumPads[index] = {
+    name: clip.name.trim() || drumPads[index].name,
+    audioUrl: clip.url,
+    audioTrimStart: clip.trimStart,
+    audioTrimEnd: clip.trimEnd,
+    muted: drumPads[index].muted ?? false,
+  };
+  return { ...song, drumPads };
+}
+
+/** Clear pad slot back to empty (label resets to Pad N). */
+export function clearDrumPad(song: SongData, index: number): SongData | null {
+  if (index < 0 || index >= song.drumPads.length) return null;
+  const drumPads: DrumPadSlot[] = [...song.drumPads];
+  drumPads[index] = { name: `Pad ${index + 1}` };
+  return { ...song, drumPads };
+}
+
+/** Toggle pad mute (still assigned; silent until unmuted). */
+export function toggleDrumPadMuted(song: SongData, index: number): SongData | null {
+  if (index < 0 || index >= song.drumPads.length) return null;
+  const drumPads: DrumPadSlot[] = [...song.drumPads];
+  const prev = drumPads[index];
+  drumPads[index] = { ...prev, muted: !prev.muted };
+  return { ...song, drumPads };
 }
 
 /** Default params for a new synth track when adding from UI. */

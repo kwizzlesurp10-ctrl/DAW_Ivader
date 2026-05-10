@@ -23,8 +23,11 @@ import {
   setSwing as setSwingMutation,
   appendTrack as appendTrackMutation,
   createEmptySynthTrack,
+  assignDrumPadClip,
+  clearDrumPad,
+  toggleDrumPadMuted,
 } from './lib/songMutations';
-import { SongData, Track, PlayState } from './types';
+import { SongData, Track, PlayState, createEmptyDrumPads } from './types';
 import {
   MUSICGEN_MODEL_VERSIONS,
   type MusicGenModelVersion,
@@ -38,6 +41,7 @@ import { Sequencer } from './components/Sequencer';
 import { Knob } from './components/Knob';
 import { AudioSampler } from './components/AudioSampler';
 import { LoopLibrary, type MusicLoop } from './components/LoopLibrary';
+import { DrumPadGrid } from './components/DrumPadGrid';
 import { HFGenerator } from './components/HFGenerator';
 
 function nextTrackId(): string {
@@ -58,6 +62,7 @@ const INITIAL_SONG: SongData = {
   bpm: 128,
   stepsPerPattern: DEFAULT_STEPS_PER_PATTERN,
   swing: DEFAULT_SWING,
+  drumPads: createEmptyDrumPads(),
   tracks: [
     {
       id: "t1",
@@ -269,6 +274,31 @@ const App: React.FC = () => {
   const handleLoopDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrumPadAssign = (index: number, loop: MusicLoop) => {
+    const next = assignDrumPadClip(song, index, {
+      name: loop.name,
+      url: loop.url,
+      trimStart: loop.trimStart,
+      trimEnd: loop.trimEnd,
+    });
+    if (next) setSong(() => next);
+  };
+
+  const handleDrumPadClear = (index: number) => {
+    const next = clearDrumPad(song, index);
+    if (next) setSong(() => next);
+  };
+
+  const handleDrumPadToggleMute = (index: number) => {
+    const next = toggleDrumPadMuted(song, index);
+    if (next) setSong(() => next);
+  };
+
+  const handleDrumPadTrigger = async (index: number) => {
+    if (!initialized) await handleInit();
+    audioEngine.triggerDrumPad(index);
   };
 
   const updateTrackParam = (trackId: string, param: keyof Track['params'], value: number) => {
@@ -675,6 +705,20 @@ const App: React.FC = () => {
         <div className="lg:col-span-8 flex flex-col gap-6 h-full min-h-0">
             <div className="cyber-panel p-1 shrink-0 bg-black/90">
                 <Visualizer />
+            </div>
+
+            <div className="shrink-0">
+                <DrumPadGrid
+                    drumPads={song.drumPads}
+                    stepsPerPattern={song.stepsPerPattern}
+                    bpm={song.bpm}
+                    currentStep={currentStep}
+                    isPlaying={playState === PlayState.PLAYING}
+                    onAssignLoop={handleDrumPadAssign}
+                    onClearPad={handleDrumPadClear}
+                    onToggleMute={handleDrumPadToggleMute}
+                    onTriggerPad={handleDrumPadTrigger}
+                />
             </div>
             
             <div className="cyber-panel flex-1 p-4 relative overflow-y-auto flex flex-col bg-black/80 min-h-[300px]">

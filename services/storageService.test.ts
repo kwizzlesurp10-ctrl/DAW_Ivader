@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { loadSong, saveSong, exportSongToJson, importSongFromJson } from './storageService';
 import { isOk, isErr } from '../lib/result';
 import type { SongData } from '../types';
+import { createEmptyDrumPads } from '../types';
 
 const STORAGE_KEY = 'doom-daw-song';
 let store: Record<string, string> = {};
@@ -50,6 +51,7 @@ const validSong: SongData = {
       pan: 0,
     },
   ],
+  drumPads: createEmptyDrumPads(),
 };
 
 describe('storageService', () => {

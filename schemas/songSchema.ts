@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import type { SongData, StepsPerPattern } from '../types';
+import {
+  type SongData,
+  type StepsPerPattern,
+  type DrumPadSlot,
+  createEmptyDrumPads,
+  DRUM_PAD_COUNT,
+} from '../types';
 import { ok, err, type Result } from '../lib/result';
 
 /** Runtime validation for external input (e.g. Gemini API response). */
@@ -45,12 +51,21 @@ export const trackSchema = z.object({
   audioTrimEnd: z.number().min(0).optional(),
 });
 
+export const drumPadSlotSchema = z.object({
+  name: z.string(),
+  audioUrl: z.string().min(1).optional(),
+  audioTrimStart: z.number().min(0).optional(),
+  audioTrimEnd: z.number().min(0).optional(),
+  muted: z.boolean().optional(),
+});
+
 export const songDataSchema = z.object({
   title: z.string(),
   bpm: z.number().int().min(1).max(999),
   stepsPerPattern: stepsPerPatternSchema.optional(),
   swing: z.number().min(0).max(100).optional(),
   tracks: z.array(trackSchema).min(1),
+  drumPads: z.array(drumPadSlotSchema).max(DRUM_PAD_COUNT).optional(),
 });
 
 export type SongDataParseResult = z.infer<typeof songDataSchema>;
@@ -77,11 +92,25 @@ export function parseSongResponse(raw: unknown): Result<SongData, Error> {
     filterRes: 1,
     gain: 0.5,
   };
+  const emptyPads = createEmptyDrumPads();
+  const rawPads = data.drumPads;
+  const drumPads: DrumPadSlot[] = emptyPads.map((empty, i) => {
+    const s = rawPads?.[i];
+    if (!s) return empty;
+    return {
+      name: typeof s.name === 'string' && s.name.trim() ? s.name : empty.name,
+      audioUrl: s.audioUrl,
+      audioTrimStart: s.audioTrimStart,
+      audioTrimEnd: s.audioTrimEnd,
+      muted: s.muted ?? false,
+    };
+  });
   const song: SongData = {
     title: data.title,
     bpm: data.bpm,
     stepsPerPattern,
     swing: data.swing ?? 0,
+    drumPads,
     tracks: data.tracks.map((t) => ({
       id: t.id,
       name: t.name,

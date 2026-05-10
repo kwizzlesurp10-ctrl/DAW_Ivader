@@ -18,8 +18,12 @@ import {
   appendTrack,
   createEmptySynthTrack,
   defaultSynthParams,
+  assignDrumPadClip,
+  clearDrumPad,
+  toggleDrumPadMuted,
 } from './songMutations';
 import type { SongData, Track } from '../types';
+import { createEmptyDrumPads } from '../types';
 
 const defaultParams = () => ({
   waveform: 'sine' as const,
@@ -39,6 +43,7 @@ function makeSong(tracks: Track[]): SongData {
     stepsPerPattern: 16,
     swing: 0,
     tracks,
+    drumPads: createEmptyDrumPads(),
   };
 }
 
@@ -299,6 +304,39 @@ describe('songMutations', () => {
       expect(t.type).toBe('synth');
       expect(t.notes).toEqual([]);
       expect(t.params.waveform).toBe('sine');
+    });
+  });
+
+  describe('assignDrumPadClip / clearDrumPad / toggleDrumPadMuted', () => {
+    it('assigns clip to pad', () => {
+      const song = makeSong([makeTrack({ id: 't1', name: 'A' })]);
+      const next = assignDrumPadClip(song, 0, {
+        name: 'Kick loop',
+        url: 'https://example.com/a.wav',
+      });
+      expect(next).not.toBeNull();
+      expect(next!.drumPads[0].audioUrl).toBe('https://example.com/a.wav');
+      expect(next!.drumPads[0].name).toBe('Kick loop');
+    });
+
+    it('clears pad', () => {
+      const song = makeSong([makeTrack({ id: 't1', name: 'A' })]);
+      const withClip = assignDrumPadClip(song, 2, { name: 'X', url: 'https://example.com/x.wav' });
+      const cleared = clearDrumPad(withClip!, 2);
+      expect(cleared!.drumPads[2].audioUrl).toBeUndefined();
+      expect(cleared!.drumPads[2].name).toBe('Pad 3');
+    });
+
+    it('toggles mute', () => {
+      const song = makeSong([makeTrack({ id: 't1', name: 'A' })]);
+      const withClip = assignDrumPadClip(song, 0, { name: 'X', url: 'https://example.com/x.wav' });
+      const muted = toggleDrumPadMuted(withClip!, 0);
+      expect(muted!.drumPads[0].muted).toBe(true);
+    });
+
+    it('returns null for invalid index', () => {
+      const song = makeSong([makeTrack({ id: 't1', name: 'A' })]);
+      expect(assignDrumPadClip(song, 99, { name: 'x', url: 'https://a.com/a.wav' })).toBeNull();
     });
   });
 
