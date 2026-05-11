@@ -99,6 +99,6 @@ describe('LoopLibrary', () => {
     const onDragStart = vi.fn();
     render(<LoopLibrary loops={mockLoops} onDeleteLoop={onDeleteLoop} onDragStart={onDragStart} />);
     
-    expect(screen.getByText(/Drag loops onto tracks in the sequencer to use them/i)).toBeDefined();
+    expect(screen.getByText(/Drag onto drum pads or sequencer tracks/i)).toBeDefined();
   });
 });

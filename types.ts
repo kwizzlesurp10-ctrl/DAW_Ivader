@@ -41,6 +41,25 @@ export interface SynthParams {
 /** Swing percentage 0..100. 0 = straight, 50 = moderate swing. */
 export type SwingPercent = number;
 
+/** Number of drum rack pads (4×4). */
+export const DRUM_PAD_COUNT = 16;
+
+/** One pad slot: optional generated/imported clip. Retriggers on pattern downbeat with transport. */
+export interface DrumPadSlot {
+  name: string;
+  audioUrl?: string;
+  audioTrimStart?: number;
+  audioTrimEnd?: number;
+  /** When true, pad is silent in playback (still assignable). */
+  muted?: boolean;
+}
+
+export function createEmptyDrumPads(): DrumPadSlot[] {
+  return Array.from({ length: DRUM_PAD_COUNT }, (_, i) => ({
+    name: `Pad ${i + 1}`,
+  }));
+}
+
 export interface SongData {
   title: string;
   bpm: number;
@@ -49,6 +68,8 @@ export interface SongData {
   /** Swing 0..100. */
   swing: SwingPercent;
   tracks: Track[];
+  /** MPC-style pads; clips sync to pattern length / BPM (retrigger at step 0). */
+  drumPads: DrumPadSlot[];
 }
 
 export enum PlayState {

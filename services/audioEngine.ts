@@ -1,4 +1,15 @@
-import { SongData, Track, NoteEvent, SynthParams } from '../types';
+import { SongData, Track, NoteEvent, SynthParams, DrumPadSlot } from '../types';
+
+const DEFAULT_AUDIO_SYNTH_PARAMS: SynthParams = {
+  waveform: 'sine',
+  attack: 0.01,
+  decay: 0.1,
+  sustain: 0.5,
+  release: 0.2,
+  filterCutoff: 1000,
+  filterRes: 1,
+  gain: 0.5,
+};
 
 /**
  * Audio engine: real Web Audio API only. No mock or simulation mode in runtime.
@@ -80,6 +91,18 @@ class AudioEngine {
           audioBufferCache.set(track.audioUrl, buffer);
         } catch {
           // Decode or fetch failed; playback will no-op
+        }
+      }
+    }
+    for (const pad of data.drumPads) {
+      if (pad.audioUrl && !audioBufferCache.has(pad.audioUrl)) {
+        try {
+          const res = await fetch(pad.audioUrl);
+          const arrayBuffer = await res.arrayBuffer();
+          const buffer = await this.ctx.decodeAudioData(arrayBuffer);
+          audioBufferCache.set(pad.audioUrl, buffer);
+        } catch {
+          // Decode or fetch failed
         }
       }
     }
@@ -188,6 +211,32 @@ class AudioEngine {
     this.playOscillator(track, noteEvent, time);
   }
 
+  /** Fire a drum pad immediately (preview / performance), if loaded and not muted. */
+  public triggerDrumPad(index: number): void {
+    if (!this.ctx || !this.songData || !this.masterGain) return;
+    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    const pad = this.songData.drumPads[index];
+    if (!pad?.audioUrl || pad.muted) return;
+    this.playAudioTrack(this.trackFromDrumPad(pad, index), this.ctx.currentTime + 0.02);
+  }
+
+  private trackFromDrumPad(pad: DrumPadSlot, index: number): Track {
+    return {
+      id: `drumpad-${index}`,
+      name: pad.name,
+      type: 'audio',
+      notes: [],
+      params: DEFAULT_AUDIO_SYNTH_PARAMS,
+      muted: false,
+      solo: false,
+      volume: 1,
+      pan: 0,
+      audioUrl: pad.audioUrl!,
+      audioTrimStart: pad.audioTrimStart,
+      audioTrimEnd: pad.audioTrimEnd,
+    };
+  }
+
   private getStepsPerPattern(): number {
     return this.songData?.stepsPerPattern ?? 16;
   }
@@ -243,6 +292,13 @@ class AudioEngine {
         this.playOscillator(track, noteEvent, time);
       });
     });
+
+    if (stepNumber === 0 && this.songData.drumPads.length > 0) {
+      this.songData.drumPads.forEach((pad, index) => {
+        if (!pad.audioUrl || pad.muted) return;
+        this.playAudioTrack(this.trackFromDrumPad(pad, index), time);
+      });
+    }
   }
 
   private playAudioTrack(track: Track, time: number): void {
