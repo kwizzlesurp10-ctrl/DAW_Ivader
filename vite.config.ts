@@ -17,10 +17,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
     },
     plugins: [react()],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.OPEN_ROUTER_API_KEY),
-      'process.env.OPEN_ROUTER_API_KEY': JSON.stringify(env.OPEN_ROUTER_API_KEY),
-    },
+    // NOTE: never `define` API keys here — anything defined is baked into the
+    // public client bundle. Secrets live only in serverless routes (api/*).
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

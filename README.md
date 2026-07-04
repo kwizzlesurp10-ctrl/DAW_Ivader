@@ -28,7 +28,7 @@ View in AI Studio: https://ai.studio/apps/drive/192C7PIV_QPpDtFu0SvAQfXqq0dFpmYq
 
 ```bash
 # 1. Install
-npm ci
+pnpm install
 
 # 2. Environment (required for Generate / text-to-audio)
 cp .env.example .env.local
@@ -36,22 +36,22 @@ cp .env.example .env.local
 # (Optional: OPEN_ROUTER_API_KEY for AI song structure)
 
 # 3. Verify
-npm run test
-npm run build
+pnpm run test
+pnpm run build
 
 # 4. Run locally
-npm run dev
+pnpm run dev
 # → http://localhost:3000
-# For Generate (text-to-audio) locally, use instead: npm run dev:full  (runs vercel dev so /api/generate-audio is available)
+# For Generate (text-to-audio) locally, use instead: pnpm run dev:full  (runs vercel dev so /api/generate-audio is available)
 ```
 
 **Production build & serve**
 
 ```bash
-npm run build
-npm run preview
-# → http://localhost:4173 (serves dist/ only — API routes not available; use npm run dev:full or deploy to Vercel)
-npm start
+pnpm run build
+pnpm run preview
+# → http://localhost:4173 (serves dist/ only — API routes not available; use pnpm run dev:full or deploy to Vercel)
+pnpm start
 # → http://localhost:3000 (serves dist/ + /api/generate-audio)
 ```
 
@@ -80,7 +80,7 @@ The **Generate** button uses **Stability AI Stable Audio 2.5** via **Replicate**
    REPLICATE_API_TOKEN=your_token
    ```
    Generate only works when the API route is reachable:
-   - **Option A:** Run with **`npm run dev:full`** or **`vercel dev`** (Vercel CLI)
+   - **Option A:** Run with **`pnpm run dev:full`** or **`vercel dev`** (Vercel CLI)
    - **Option B:** Deploy to Vercel and use the deployed URL
 
 3. **Vercel (production)**  
@@ -90,7 +90,7 @@ The **Generate** button uses **Stability AI Stable Audio 2.5** via **Replicate**
 
 ## Run locally (dev)
 
-1. **Install:** `npm install`
+1. **Install:** `pnpm install`
 2. **Env:** Set `REPLICATE_API_TOKEN` in `.env.local` for Generate.
    - Get a token at [replicate.com/account/api-tokens](https://replicate.com/account/api-tokens)
-3. **Run:** For Generate to work locally, use **`npm run dev:full`** (or `vercel dev`). Plain `npm run dev` only serves the frontend and does not expose `/api/generate-audio`. Otherwise use the deployed app.
+3. **Run:** For Generate to work locally, use **`pnpm run dev:full`** (or `vercel dev`). Plain `pnpm run dev` only serves the frontend and does not expose `/api/generate-audio`. Otherwise use the deployed app.
