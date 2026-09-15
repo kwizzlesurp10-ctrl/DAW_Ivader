@@ -21,9 +21,9 @@
 
 End-to-end flow:
 
-1. **Frontend** (`App.tsx`): User enters prompt, clicks Generate. Calls `generateAudioFromText(prompt, 8)`.
-2. **Client service** (`services/textToAudioService.ts`): Validates input with Zod (`generateAudioRequestSchema`), POSTs to `/api/generate-audio`, validates response with `generateAudioResponseSchema`. Returns `Result<{ url }, Error>`.
-3. **API** (`api/generate-audio.ts`): Vercel serverless. Validates body with `parseGenerateAudioRequest`, calls Replicate Stable Audio 2.5 (params: `prompt`, `duration`, `cfg_scale`, `steps`), returns `{ url }` or `{ error }`. 300s `maxDuration` on Vercel.
+1. **Frontend** (`App.tsx`): User enters prompt, clicks Generate. Calls `generateAudioFromText(prompt, duration, modelVersion)`.
+2. **Client service** (`services/textToAudioService.ts`): Validates input, POSTs to `/api/generate-audio`, returns `Result<{ url }, Error>`. Detects Vercel infrastructure error pages and shows a user-friendly retry message.
+3. **API** (`api/generate-audio.ts`): Vercel serverless (`maxDuration: 300s`). Validates body with `parseGenerateAudioRequest`, calls Replicate Stable Audio 2.5 (params: `prompt`, `duration`, `cfg_scale`, `steps`). A 250s hard timeout fires before Vercel's 300s limit, returning a proper 502 instead of `FUNCTION_INVOCATION_FAILED`. Returns `{ url }` or `{ error }`.
 4. **Track creation** (`lib/createGeneratedAudioTrack.ts`): Pure function. Builds `Track` with `type: 'audio'` and `audioUrl` for the DAW.
 5. **Audio engine**: Preloads and plays audio tracks from `audioUrl` at step 0 each loop.
 

@@ -15,6 +15,17 @@ const GENERATE_AUDIO_API = '/api/generate-audio';
 const DEFAULT_MODEL_VERSION = 'large';
 
 /**
+ * Patterns that identify Vercel infrastructure error pages (non-JSON non-2xx responses).
+ * When any of these appear in the response body, we show a generic retry message
+ * instead of exposing raw Vercel internals (e.g. FUNCTION_INVOCATION_FAILED, request IDs).
+ */
+const VERCEL_INFRA_ERROR_PATTERNS = [
+  'FUNCTION_INVOCATION_FAILED',
+  'FUNCTION_INVOCATION_TIMEOUT',
+  'A server error has occurred',
+] as const;
+
+/**
  * Generate audio from a text prompt via the Replicate single-shot API:
  * POST /api/generate-audio → { url }
  *
@@ -89,6 +100,7 @@ function normalizeNetworkError(e: unknown): Error {
 /**
  * Build an Error from a non-2xx response body.
  * - 404  -> hint to run `vercel dev`
+ * - Vercel infrastructure error page -> generic retry message
  * - JSON body with .error string -> use that
  * - Anything else -> fall back to HTTP status code
  */
@@ -99,6 +111,9 @@ function parseErrorBody(raw: string, status: number): Error {
     );
   }
   if (raw) {
+    if (VERCEL_INFRA_ERROR_PATTERNS.some((p) => raw.includes(p))) {
+      return new Error('The server encountered an unexpected error. Please try again in a moment.');
+    }
     try {
       const body = JSON.parse(raw) as Record<string, unknown>;
       if (typeof body.error === 'string') {

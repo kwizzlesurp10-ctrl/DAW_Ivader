@@ -259,6 +259,18 @@ describe('api/generate-audio (communication layer)', () => {
       const data = await res.json();
       expect(data.error).toContain('Generation failed');
     });
+
+    it('returns 502 with timeout message when Replicate AbortError is thrown', async () => {
+      mockRun.mockRejectedValue(
+        Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })
+      );
+
+      const res = await post({ prompt: 'test' });
+
+      expect(res.status).toBe(502);
+      const data = await res.json() as { error: string };
+      expect(data.error).toContain('timed out');
+    });
   });
 
   describe('handler outer catch', () => {

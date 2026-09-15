@@ -13,6 +13,13 @@ const STABLE_AUDIO_MODEL = 'stability-ai/stable-audio-2.5';
 const STABLE_AUDIO_REPLICATE_MODEL = STABLE_AUDIO_MODEL;
 
 /**
+ * Timeout for the Replicate API request.
+ * Must be less than maxDuration (300s) so we can return a proper error
+ * rather than letting Vercel kill the function (FUNCTION_INVOCATION_FAILED).
+ */
+const REPLICATE_REQUEST_TIMEOUT_MS = 250_000;
+
+/**
  * Extract a plain URL string from a Replicate output value.
  * Handles: plain string, array of strings, FileOutput object with url() method
  * (which returns a URL object), FileOutput.toString().
@@ -105,6 +112,11 @@ async function handleRequest(request: Request): Promise<Response> {
 
   // Single-shot: replicate.run() waits for the prediction to complete and returns output directly.
   let output: unknown;
+  const replicateTimeoutController = new AbortController();
+  const replicateTimeoutId = setTimeout(
+    () => replicateTimeoutController.abort(),
+    REPLICATE_REQUEST_TIMEOUT_MS
+  );
   try {
     output = await replicate.run(STABLE_AUDIO_MODEL, {
       input: {
@@ -113,11 +125,22 @@ async function handleRequest(request: Request): Promise<Response> {
         cfg_scale: 7,
         steps: 8,
       },
+      signal: replicateTimeoutController.signal,
     });
   } catch (err) {
+    clearTimeout(replicateTimeoutId);
+    const name = (err as Error)?.name;
     const message = err instanceof Error ? err.message : String(err);
+    if (name === 'AbortError') {
+      return jsonResponse(
+        { error: 'Generation failed: Replicate request timed out. The model may be cold — try again in a moment.' },
+        502
+      );
+    }
     console.error('[generate-audio] generation failed:', message);
     return jsonResponse({ error: `Generation failed: ${message}` }, 502);
+  } finally {
+    clearTimeout(replicateTimeoutId);
   }
 
   const url = extractUrl(output);
